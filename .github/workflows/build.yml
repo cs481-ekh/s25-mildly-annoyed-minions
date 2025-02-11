@@ -1,5 +1,5 @@
 name: Build
-run-name: Midly Annoyed Minions are building the project
+run-name: Midly Annoyed Minions are building...
 on:
   issue_comment:
     types:
