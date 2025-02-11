@@ -8,17 +8,18 @@ on:
     types:
       - opened
       - closed
-    branches: [ "main" ]
 jobs:
-  jobs01:
+  run-build:
     runs-on: [ ubuntu-latest ]
     if: |
       github.event_name == 'pull_request' ||
-      (github.event_name == 'issue_comment' && contains(github.event.comment.body, '{t:')
+      (github.event_name == 'issue_comment' && startswith(github.event.comment.body, '[#')  # Assumes check-in coments all start with [#
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-      - name: Make build.sh executable
+
+      - name: Make build script executable
         run: chmod +x build.sh
-      - name: Run build.sh
+
+      - name: Run build script
         run: ./build.sh
