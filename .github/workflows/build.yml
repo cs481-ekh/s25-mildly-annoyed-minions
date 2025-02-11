@@ -8,6 +8,8 @@ on:
     types:
       - opened
       - closed
+    branches:
+      - '**'
 jobs:
   run-build:
     runs-on: [ ubuntu-latest ]
