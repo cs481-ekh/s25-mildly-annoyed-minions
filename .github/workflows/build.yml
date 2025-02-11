@@ -13,7 +13,7 @@ jobs:
     runs-on: [ ubuntu-latest ]
     if: |
       github.event_name == 'pull_request' ||
-      (github.event_name == 'issue_comment' && startswith(github.event.comment.body, '[#')  # Assumes check-in coments all start with [#
+      (github.event_name == 'issue_comment' && startswith(github.event.comment.body, '[#'))  # Assumes check-in coments all start with [#
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
