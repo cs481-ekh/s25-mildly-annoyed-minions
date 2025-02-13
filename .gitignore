@@ -1,0 +1,17 @@
+.idea
+.idea/
+
+.vscode
+.vscode/*
+
+.env
+.env/*
+
+build
+build/*
+
+target
+target/*
+
+output
+output/*
