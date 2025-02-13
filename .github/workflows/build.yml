@@ -1,0 +1,27 @@
+name: Build
+run-name: Midly Annoyed Minions are building...
+on:
+  issue_comment:
+    types:
+      - created
+  pull_request:
+    types:
+      - opened
+      - closed
+    branches:
+      - '**'
+jobs:
+  run-build:
+    runs-on: [ ubuntu-latest ]
+    if: |
+      github.event_name == 'pull_request' ||
+      (github.event_name == 'issue_comment' && startsWith(github.event.comment.body, '[#'))
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Make build script executable
+        run: chmod +x build.sh
+
+      - name: Run build script
+        run: ./build.sh
