@@ -1,0 +1,23 @@
+name: Test
+run-name: Midly Annoyed Minions are testing the project
+on:
+  workflow_run:
+    workflows:
+      - "Build"
+    branches:
+      - '**'
+    types:
+      - completed
+jobs:
+  on-success:
+    runs-on: [ ubuntu-latest ]
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Make test script executable
+        run: chmod +x test.sh
+
+      - name: Run test script
+        run: ./test.sh
