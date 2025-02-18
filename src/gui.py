@@ -82,6 +82,10 @@ class GUI:
 
         self.inner_frame.bind("<Configure>", self.update_scrollregion)
 
+        self.canvas.bind_all("<MouseWheel>", self.on_mousewheel)
+        self.canvas.bind_all("<Button-4>", self.on_mousewheel)
+        self.canvas.bind_all("<Button-5>", self.on_mousewheel)
+
         buttonbox = Frame(self.master)
         buttonbox.grid(row=2, column=0, columnspan=2, pady=5)
         Button(buttonbox, text='Select Files', command=self.select_files).pack(side=LEFT, padx=5)
@@ -181,3 +185,11 @@ class GUI:
 
     def update_scrollregion(self, event=None):
         self.canvas.configure(scrollregion=self.canvas.bbox("all"))
+
+    def on_mousewheel(self, event):
+        if event.delta:
+            self.canvas.yview_scroll(-1 * (event.delta // 120), "units")
+        elif event.num == 4:
+            self.canvas.yview_scroll(-1, "units")
+        elif event.num == 5:
+            self.canvas.yview_scroll(1, "units")
