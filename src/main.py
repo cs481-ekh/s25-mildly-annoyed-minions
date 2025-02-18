@@ -1,11 +1,12 @@
 from gui import GUI
-
-import tkinter as tk
+from tkinterdnd2 import TkinterDnD
 
 def main():
 
-    root = tk.Tk()
+    root = TkinterDnD.Tk()
     app = GUI(root)
+    root.update_idletasks()
+    root.deiconify()
     root.mainloop()
 
 if __name__ == '__main__':
