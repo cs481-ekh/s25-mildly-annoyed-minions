@@ -44,7 +44,6 @@ class GUI:
         Label(self.master, text='Drag and drop files here:').grid(row=0, column=0, padx=10, pady=5)
         self.master.geometry("550x400")
 
-
         self.frames = {}
         self.create_frames()
         self.update_screen("file_selection")
@@ -69,11 +68,17 @@ class GUI:
         file_icon = PhotoImage(data=file_data)
         folder_icon = PhotoImage(data=folder_data)
 
-        self.canvas = Canvas(self.master, bg='white', relief='sunken', bd=1)
-        self.canvas.grid(row=1, column=0, padx=5, pady=5, sticky='news')
+        main_frame = Frame(self.master)
+        main_frame.grid(row=1, column=0, padx=5, pady=5, sticky='news')
 
-        self.scrollbar = Scrollbar(self.master, orient='vertical', command=self.canvas.yview)
-        self.scrollbar.grid(row=1, column=1, sticky='ns')
+        self.master.grid_rowconfigure(1, weight=1)
+        self.master.grid_columnconfigure(0, weight=1)
+
+        self.canvas = Canvas(main_frame, bg='white', relief='sunken', bd=1)
+        self.canvas.grid(row=0, column=0, padx=5, pady=5, sticky='news')
+
+        self.scrollbar = Scrollbar(main_frame, orient='vertical', command=self.canvas.yview)
+        self.scrollbar.grid(row=0, column=1, sticky='ns')
 
         self.canvas.configure(yscrollcommand=self.scrollbar.set)
 
@@ -86,9 +91,6 @@ class GUI:
         self.canvas.bind_all("<Button-4>", self.on_mousewheel)
         self.canvas.bind_all("<Button-5>", self.on_mousewheel)
 
-        buttonbox = Frame(self.master)
-        buttonbox.grid(row=2, column=0, columnspan=2, pady=5)
-        Button(buttonbox, text='Select Files', command=self.select_files).pack(side=LEFT, padx=5)
 
         self.canvas.drop_target_register(DND_FILES)
         self.canvas.dnd_bind("<<Drop>>", self.drop)
@@ -101,6 +103,20 @@ class GUI:
         self.canvas.dnd_bind('<<DragInitCmd>>', self.drag_init)
         self.canvas.dnd_bind('<<DragEndCmd>>', self.drag_end)
 
+        self.canvas.configure(borderwidth=0, relief="solid", highlightthickness=0)
+
+        main_frame.grid_rowconfigure(0, weight=1)
+        main_frame.grid_columnconfigure(0, weight=1)
+
+        bottom_frame = Frame(self.master)
+        bottom_frame.grid(row=2, column=0, columnspan=2, pady=10, sticky="ew")
+
+        self.status_label = Label(bottom_frame, text="", fg="black", anchor="w", width=50)
+        self.status_label.pack(side="left", padx=10)
+
+        self.select_button = Button(bottom_frame, text="Select Files", command=self.select_files)
+        self.select_button.pack(side="right", padx=10)
+
         return self
 
     def create_processing_frame(self):
@@ -112,57 +128,78 @@ class GUI:
     def create_completion_frame(self):
         pass
 
+    def update_status(self, valid, duplicate, invalid):
+        status_parts = []
+        if valid > 0:
+            status_parts.append(f"Added {valid} VALID File{'s' if valid > 1 else ''}")
+        if duplicate > 0:
+            status_parts.append(f"Skipped {duplicate} DUPLICATE{'S' if duplicate > 1 else ''}")
+        if invalid > 0:
+            status_parts.append(f"Ignored {invalid} NON-VALID File{'s' if invalid > 1 else ''}")
+
+        self.status_label.config(text=" | ".join(status_parts), fg="blue")
+
     def select_files(self):
-        file_paths = filedialog.askopenfilenames(filetypes=[("PDF Files", "*.pdf")])
+        file_paths = filedialog.askopenfilenames(title="Select PDF Files", filetypes=[("PDF Files", "*.pdf")], multiple=True)
+
+        valid_count, duplicate_count, invalid_count = 0, 0, 0
+
         if file_paths:
             for file_path in file_paths:
+                if file_path in self.added_files:
+                    print(f"Skipping Previously Added File: {file_path}")
+                    duplicate_count += 1
+                    continue
                 self.add_file_to_canvas(file_path)
+                valid_count += 1
 
-    def add_file_to_canvas(self, filename):
-        if filename in self.added_files:
-            print(f"Skipping already added file: {filename}")
-            return
+        self.update_status(valid_count, duplicate_count, invalid_count)
 
+    def add_file_to_canvas(self, file_path):
         icon = file_icon
-        if os.path.isdir(filename):
+        if os.path.isdir(file_path):
             icon = folder_icon
 
         id1 = self.canvas.create_image(self.canvas.nextcoords[0], self.canvas.nextcoords[1], image=icon, anchor='n',
                                        tags=('file',))
         id2 = self.canvas.create_text(self.canvas.nextcoords[0], self.canvas.nextcoords[1] + 50,
-                                      text=os.path.basename(filename), anchor='n', justify='center', width=90)
+                                      text=os.path.basename(file_path), anchor='n', justify='center', width=90)
 
-        self.canvas.filenames[id1] = filename
-        self.canvas.filenames[id2] = filename
+        self.canvas.filenames[id1] = file_path
+        self.canvas.filenames[id2] = file_path
 
         if self.canvas.nextcoords[0] > 450:
             self.canvas.nextcoords = [60, self.canvas.nextcoords[1] + 130]
         else:
             self.canvas.nextcoords = [self.canvas.nextcoords[0] + 100, self.canvas.nextcoords[1]]
 
-        self.added_files.add(filename)
+        self.added_files.add(file_path)
+        print("Added file: ", file_path)
 
         self.update_scrollregion()
 
-    def drop_enter(event):
-        event.widget.focus_force()
-        print('Entering %s' % event.widget)
-        return event.action
-
-    def drop_position(event):
-        return event.action
-
-    def drop_leave(event):
-        print('Leaving %s' % event.widget)
-        return event.action
+    def is_pdf(self, file_path):
+        return file_path.lower().endswith('.pdf')
 
     def drop(self, event):
         if self.canvas.dragging:
             return tkinterdnd2.REFUSE_DROP
         if event.data:
             files = self.canvas.tk.splitlist(event.data)
-            for f in files:
-                self.add_file_to_canvas(f)
+            valid_count, duplicate_count, invalid_count = 0, 0, 0
+            for file_path in files:
+                if not self.is_pdf(file_path):
+                    print(f"Rejected Non-PDF File: {file_path}")
+                    invalid_count += 1
+                    continue
+                if file_path in self.added_files:
+                    print(f"Skipping Previously Added File: {file_path}")
+                    duplicate_count += 1
+                    continue
+                self.add_file_to_canvas(file_path)
+
+            self.update_status(valid_count, duplicate_count, invalid_count)
+
         return event.action
 
     def drag_init(self, event):
