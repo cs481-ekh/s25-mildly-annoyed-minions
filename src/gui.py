@@ -7,7 +7,7 @@ except ImportError:
     from tkinter import *
 
 import tkinterdnd2
-from tkinterdnd2 import DND_FILES, TkinterDnD
+from tkinterdnd2 import DND_FILES
 
 file_data = ('iVBORw0KGgoAAAANSUhEUgAAADAAAAAwCAMAAABg3Am1AAAAk1BMVEVHcEzJz9j/Vi/'
              'jMQbo6+7FytL/VS/ovrbq6+/e4Obs9fvhZUfbLwnYy835UizR1N3/VjDM0tn9XzzHzdb'
@@ -42,7 +42,8 @@ class GUI:
         self.master.withdraw()
         self.master.title("R&D Labs Directory Parser")
         Label(self.master, text='Drag and drop files here:').grid(row=0, column=0, padx=10, pady=5)
-        self.master.geometry("515x515")
+        self.master.geometry("550x400")
+
 
         self.frames = {}
         self.create_frames()
@@ -62,24 +63,34 @@ class GUI:
     def create_file_selection_frame(self):
         self.master.grid_rowconfigure(1, weight=1)
         self.master.grid_columnconfigure(0, weight=1)
-        buttonbox = Frame(self.master)
-        buttonbox.grid(row=2, column=0, columnspan=2, pady=5)
-        Button(buttonbox, text='Select Files', command=self.select_files).pack(side=LEFT, padx=5)
 
         global file_icon
         global folder_icon
         file_icon = PhotoImage(data=file_data)
         folder_icon = PhotoImage(data=folder_data)
 
-        self.canvas = Canvas(self.master, name='dnd_demo_canvas', bg='white', relief='sunken', bd=1, highlightthickness=1,
-                             takefocus=True, width=600)
+        self.canvas = Canvas(self.master, bg='white', relief='sunken', bd=1)
         self.canvas.grid(row=1, column=0, padx=5, pady=5, sticky='news')
+
+        self.scrollbar = Scrollbar(self.master, orient='vertical', command=self.canvas.yview)
+        self.scrollbar.grid(row=1, column=1, sticky='ns')
+
+        self.canvas.configure(yscrollcommand=self.scrollbar.set)
+
+        self.inner_frame = Frame(self.canvas, bg='lightgray')
+        self.inner_window = self.canvas.create_window((0, 0), window=self.inner_frame, anchor="nw")
+
+        self.inner_frame.bind("<Configure>", self.update_scrollregion)
+
+        buttonbox = Frame(self.master)
+        buttonbox.grid(row=2, column=0, columnspan=2, pady=5)
+        Button(buttonbox, text='Select Files', command=self.select_files).pack(side=LEFT, padx=5)
 
         self.canvas.drop_target_register(DND_FILES)
         self.canvas.dnd_bind("<<Drop>>", self.drop)
 
         self.canvas.filenames = {}
-        self.canvas.nextcoords = [50, 20]
+        self.canvas.nextcoords = [60, 20]
         self.canvas.dragging = False
 
         self.canvas.drag_source_register(1, DND_FILES)
@@ -114,18 +125,20 @@ class GUI:
 
         id1 = self.canvas.create_image(self.canvas.nextcoords[0], self.canvas.nextcoords[1], image=icon, anchor='n',
                                        tags=('file',))
-        id2 = self.canvas.create_text(self.canvas.nextcoords[0], self.canvas.nextcoords[1] + 55,
+        id2 = self.canvas.create_text(self.canvas.nextcoords[0], self.canvas.nextcoords[1] + 50,
                                       text=os.path.basename(filename), anchor='n', justify='center', width=90)
 
         self.canvas.filenames[id1] = filename
         self.canvas.filenames[id2] = filename
 
         if self.canvas.nextcoords[0] > 450:
-            self.canvas.nextcoords = [50, self.canvas.nextcoords[1] + 120]
+            self.canvas.nextcoords = [60, self.canvas.nextcoords[1] + 130]
         else:
             self.canvas.nextcoords = [self.canvas.nextcoords[0] + 100, self.canvas.nextcoords[1]]
 
         self.added_files.add(filename)
+
+        self.update_scrollregion()
 
     def drop_enter(event):
         event.widget.focus_force()
@@ -165,3 +178,6 @@ class GUI:
 
     def drag_end(self, event):
         self.canvas.dragging = False
+
+    def update_scrollregion(self, event=None):
+        self.canvas.configure(scrollregion=self.canvas.bbox("all"))
