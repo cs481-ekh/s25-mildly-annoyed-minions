@@ -1,5 +1,6 @@
 import os
-from tkinter import filedialog
+from tkinter import filedialog, messagebox, Toplevel, Text, Scrollbar
+import tkinter as tk
 
 try:
     from Tkinter import *
@@ -8,6 +9,8 @@ except ImportError:
 
 import tkinterdnd2
 from tkinterdnd2 import DND_FILES
+from ocr import extract_text_from_pdf  # Import the OCR function
+from config import set_tesseract_path
 
 file_pic_base_64 = ('iVBORw0KGgoAAAANSUhEUgAAADAAAAAwCAMAAABg3Am1AAAAk1BMVEVHcEzJz9j/Vi/'
                     'jMQbo6+7FytL/VS/ovrbq6+/e4Obs9fvhZUfbLwnYy835UizR1N3/VjDM0tn9XzzHzdb'
@@ -79,7 +82,6 @@ class GUI:
         self.canvas.bind_all("<Button-4>", self.on_mousewheel)
         self.canvas.bind_all("<Button-5>", self.on_mousewheel)
 
-
         self.canvas.drop_target_register(DND_FILES)
         self.canvas.dnd_bind("<<Drop>>", self.drop)
 
@@ -104,6 +106,10 @@ class GUI:
 
         self.select_button = Button(bottom_frame, text="Select Files", command=self.select_files)
         self.select_button.pack(side="right", padx=10)
+
+        # Add OCR button
+        self.ocr_button = Button(bottom_frame, text="Run OCR", command=self.run_ocr)
+        self.ocr_button.pack(side="right", padx=10)
 
         return self
 
@@ -214,3 +220,42 @@ class GUI:
             self.canvas.yview_scroll(-1, "units")
         elif event.num == 5:
             self.canvas.yview_scroll(1, "units")
+
+    def run_ocr(self):
+        # Check if files are added
+        if not self.added_files:
+            messagebox.showwarning("No Files", "No PDF files have been added.")
+            return
+
+        # Set the Tesseract path
+        try:
+            set_tesseract_path()  # Call the function from config.py
+        except FileNotFoundError as e:
+            messagebox.showerror("Tesseract Error", str(e))
+            return
+
+        # Create a new window to display OCR results
+        ocr_window = Toplevel(self.master)
+        ocr_window.title("OCR Results")
+        ocr_window.geometry("600x400")
+
+        # Add a text widget to display the extracted text
+        text_widget = Text(ocr_window, wrap="word")
+        text_widget.pack(fill="both", expand=True, padx=10, pady=10)
+
+        # Add a scrollbar
+        scrollbar = Scrollbar(ocr_window, command=text_widget.yview)
+        scrollbar.pack(side="right", fill="y")
+        text_widget.config(yscrollcommand=scrollbar.set)
+
+        # Perform OCR on each file and display the results
+        for file_path in self.added_files:
+            try:
+                extracted_text = extract_text_from_pdf(file_path)  # Assuming this uses pytesseract
+                text_widget.insert("end", f"=== {os.path.basename(file_path)} ===\n")
+                text_widget.insert("end", extracted_text + "\n\n")
+            except Exception as e:
+                text_widget.insert("end", f"Error processing {file_path}: {str(e)}\n\n")
+
+        # Disable editing in the text widget
+        text_widget.config(state="disabled")
