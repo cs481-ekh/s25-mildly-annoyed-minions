@@ -10,6 +10,7 @@ except ImportError:
 import tkinterdnd2
 from tkinterdnd2 import DND_FILES
 from ocr import extract_text_from_pdf  # Import the OCR function
+from config import set_tesseract_path
 
 file_pic_base_64 = ('iVBORw0KGgoAAAANSUhEUgAAADAAAAAwCAMAAABg3Am1AAAAk1BMVEVHcEzJz9j/Vi/'
                     'jMQbo6+7FytL/VS/ovrbq6+/e4Obs9fvhZUfbLwnYy835UizR1N3/VjDM0tn9XzzHzdb'
@@ -221,8 +222,16 @@ class GUI:
             self.canvas.yview_scroll(1, "units")
 
     def run_ocr(self):
+        # Check if files are added
         if not self.added_files:
             messagebox.showwarning("No Files", "No PDF files have been added.")
+            return
+
+        # Set the Tesseract path
+        try:
+            set_tesseract_path()  # Call the function from config.py
+        except FileNotFoundError as e:
+            messagebox.showerror("Tesseract Error", str(e))
             return
 
         # Create a new window to display OCR results
@@ -242,7 +251,7 @@ class GUI:
         # Perform OCR on each file and display the results
         for file_path in self.added_files:
             try:
-                extracted_text = extract_text_from_pdf(file_path)
+                extracted_text = extract_text_from_pdf(file_path)  # Assuming this uses pytesseract
                 text_widget.insert("end", f"=== {os.path.basename(file_path)} ===\n")
                 text_widget.insert("end", extracted_text + "\n\n")
             except Exception as e:
