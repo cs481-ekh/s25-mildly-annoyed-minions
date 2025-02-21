@@ -1,6 +1,7 @@
 import os
 from tkinter import filedialog, messagebox, Toplevel, Text, Scrollbar
 import tkinter as tk
+import csv
 
 try:
     from Tkinter import *
@@ -222,40 +223,65 @@ class GUI:
             self.canvas.yview_scroll(1, "units")
 
     def run_ocr(self):
-        # Check if files are added
         if not self.added_files:
             messagebox.showwarning("No Files", "No PDF files have been added.")
             return
 
-        # Set the Tesseract path
         try:
-            set_tesseract_path()  # Call the function from config.py
+            set_tesseract_path()  # Ensure Tesseract is set up
         except FileNotFoundError as e:
             messagebox.showerror("Tesseract Error", str(e))
             return
 
-        # Create a new window to display OCR results
-        ocr_window = Toplevel(self.master)
-        ocr_window.title("OCR Results")
-        ocr_window.geometry("600x400")
+        csv_files = []
 
-        # Add a text widget to display the extracted text
-        text_widget = Text(ocr_window, wrap="word")
-        text_widget.pack(fill="both", expand=True, padx=10, pady=10)
-
-        # Add a scrollbar
-        scrollbar = Scrollbar(ocr_window, command=text_widget.yview)
-        scrollbar.pack(side="right", fill="y")
-        text_widget.config(yscrollcommand=scrollbar.set)
-
-        # Perform OCR on each file and display the results
         for file_path in self.added_files:
             try:
-                extracted_text = extract_text_from_pdf(file_path)  # Assuming this uses pytesseract
-                text_widget.insert("end", f"=== {os.path.basename(file_path)} ===\n")
-                text_widget.insert("end", extracted_text + "\n\n")
-            except Exception as e:
-                text_widget.insert("end", f"Error processing {file_path}: {str(e)}\n\n")
+                extracted_text = extract_text_from_pdf(file_path)
 
-        # Disable editing in the text widget
-        text_widget.config(state="disabled")
+                # Save CSV automatically
+                csv_path = self.save_csv(extracted_text, file_path)
+                if csv_path:
+                    csv_files.append(csv_path)
+
+            except Exception as e:
+                messagebox.showerror("Error", f"Error processing {file_path}: {str(e)}")
+
+        if csv_files:
+            self.show_download_screen(csv_files)
+
+    def save_csv(self, extracted_text, file_path):
+        csv_path = file_path.replace(".pdf", ".csv")
+
+        try:
+            with open(csv_path, mode='w', newline='', encoding='utf-8') as file:
+                writer = csv.writer(file)
+                writer.writerow(['Page Number', 'Extracted Text'])
+                for page_num, text in enumerate(extracted_text.split('\n\n')):
+                    writer.writerow([page_num + 1, text])
+
+            return csv_path
+
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to save CSV file: {str(e)}")
+            return None
+
+    def show_download_screen(self, csv_files):
+        """Display a screen that allows the user to download the CSV files."""
+        for widget in self.master.winfo_children():
+            widget.destroy()  # Clear the current UI
+
+        Label(self.master, text="OCR Complete! Download CSV files below:", font=("Arial", 14)).pack(pady=20)
+
+        for csv_path in csv_files:
+            Button(self.master, text=f"Download {os.path.basename(csv_path)}",
+                   command=lambda path=csv_path: os.startfile(path)).pack(pady=5)
+
+        Button(self.master, text="Back to Home", command=self.restart_gui).pack(pady=20)
+
+    def restart_gui(self):
+        """Reloads the GUI to the initial file selection screen."""
+        self.master.destroy()
+        root = tk.Tk()
+        app = GUI(root)
+        root.mainloop()
