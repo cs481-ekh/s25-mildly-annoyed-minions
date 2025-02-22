@@ -1,0 +1,4 @@
+year,code,title,street,city,state,zip,phone,tag,staff,doctorates,numTechsAndAuxs,fields,note
+1975,A1,AAI CORPORATION,PO Box 6767,Baltimore,MD,21204,"301-666-1400",,,,,,
+1975,A1.1,"AAI CORPORATION-Electronics Division",PO Box 6767,Baltimore,MD,21204,"301-666-1400",pf,119,,198,"Applied research and development of training and simulation systems in teh areas of air defense weapon systems, air traffic control, and anti-submarine warfare; development of automatic test equipment from testing of components through modules to complete systems",
+1975,A1.2,"AAI CORPORATION-Weapons and Aero Systems Division",PO Box 6767,Baltimore,MD,21204,"301-666-1400",pf,54,,69,"Applied research and development of vehicles, weapons and ammunition, weapons installation, explosive applications, materials handling and delivery systems, aerospace trainers, and product oriented research weapons in solar and wind energy",

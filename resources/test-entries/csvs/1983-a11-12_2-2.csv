@@ -1,0 +1,5 @@
+year,code,title,street,city,state,zip,phone,tag,staff,doctorates,numTechsAndAuxs,fields,note
+1983,A11,ABBOTT TRANSISTOR LABS,5200 W Jefferson Blvd,Los Angeles,CA,90016,"213-636-8185",,,,,,
+1983,A11.1,"ABBOTT TRANSISTOR LABS-Abbott Transistor Labs","520 Main St, Suite 300",Fort Lee,NJ,07024,"201-461-4411",p,,,,"Standardized power supplies, including direct current to alternating current inverters, alternating current to direct current converters, direct current to sine wave inverters and standard and customized power transformers",
+1983,A12,A B C DIGITAL ELECTRONICS,51 Prospect Pl,Hillsdale,NJ,07642,"201-666-6888",pgic,15,1,15,"Automatic test systems; electromagnetic devices",
+1983,A12.1,"A B C DIGITAL ELECTRONICS-Automation Dynamics Division",51 Prospect Pl,Hillsdale,NJ,07642,"201-666-6888",ic,12,1,28,"Digital electronics production test systems and method devices",
