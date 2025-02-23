@@ -1,5 +1,5 @@
-name: Build
-run-name: Midly Annoyed Minions are building...
+name: Build & Test
+run-name: MAMs are building & testing...
 on:
   issue_comment:
     types:
@@ -11,7 +11,7 @@ on:
     branches:
       - '**'
 jobs:
-  run-build:
+  clean-build-test:
     runs-on: [ ubuntu-latest ]
     if: |
       github.event_name == 'pull_request' ||
@@ -31,8 +31,20 @@ jobs:
           source .env/bin/activate
           pip install -r requirements.txt
 
+      - name: Make clean script executable
+        run: chmod +x clean.sh
+
+      - name: Run clean script
+        run: ./clean.sh
+
       - name: Make build script executable
         run: chmod +x build.sh
 
       - name: Run build script
         run: ./build.sh
+
+      - name: Make test script executable
+        run: chmod +x test.sh
+
+      - name: Run test script
+        run: ./test.sh
