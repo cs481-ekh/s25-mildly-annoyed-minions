@@ -1,0 +1,3 @@
+year,code,title,street,city,state,zip,phone,tag,staff,doctorates,numTechsAndAuxs,fields,note
+1989,D60,DATUM,1363 State College Blvd,Anaheim,CA,92806,"714-533-6333",pg,,,,"Product-oriented research and development of precision time and frequency products",
+1989,D60.1,"DATUM-Frequency & Time Systems, Inc",34 Tozer Rd,Beverly,MA,01915,"617-927-8220",pgi,9,4,6,"Research, development and design of precision frequency standards, ultra stable crystal oscillators and cesium beam frequency standards",
