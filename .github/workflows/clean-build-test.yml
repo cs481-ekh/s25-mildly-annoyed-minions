@@ -1,5 +1,5 @@
-name: Build & Test
-run-name: MAMs are building & testing...
+name: Clean, Build, & Test
+run-name: MAMs are cleaning, building & testing...
 on:
   issue_comment:
     types:
