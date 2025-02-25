@@ -1,17 +1,21 @@
-name: Test
-run-name: Midly Annoyed Minions are testing the project
+name: Clean, Build, & Test
+run-name: MAMs are cleaning, building & testing...
 on:
-  workflow_run:
-    workflows:
-      - "Build"
+  issue_comment:
+    types:
+      - created
+  pull_request:
+    types:
+      - opened
+      - closed
     branches:
       - '**'
-    types:
-      - completed
 jobs:
-  on-success:
+  clean-build-test:
     runs-on: [ ubuntu-latest ]
-    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    if: |
+      github.event_name == 'pull_request' ||
+      (github.event_name == 'issue_comment' && startsWith(github.event.comment.body, '[#'))
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -22,10 +26,22 @@ jobs:
           sudo apt install -y build-essential libssl-dev zlib1g-dev \
           libbz2-dev libreadline-dev libsqlite3-dev curl git \
           libncursesw5-dev xz-utils tk-dev libxml2-dev libxmlsec1-dev libffi-dev liblzma-dev \
-          tesseract-ocr libtesseract-dev
+          tesseract-ocr libtesseract-dev poppler-utils
           python -m venv .env
           source .env/bin/activate
           pip install -r requirements.txt
+
+      - name: Make clean script executable
+        run: chmod +x clean.sh
+
+      - name: Run clean script
+        run: ./clean.sh
+
+      - name: Make build script executable
+        run: chmod +x build.sh
+
+      - name: Run build script
+        run: ./build.sh
 
       - name: Make test script executable
         run: chmod +x test.sh

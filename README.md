@@ -1,7 +1,6 @@
 # R&D Labs Directories Parser
 
-![Build](https://github.com/cs481-ekh/s25-mildly-annoyed-minions/actions/workflows/build.yml/badge.svg)
-![Test](https://github.com/cs481-ekh/s25-mildly-annoyed-minions/actions/workflows/test.yml/badge.svg)
+![Clean, Build, & Test](https://github.com/cs481-ekh/s25-mildly-annoyed-minions/actions/workflows/clean-build-test.yml/badge.svg)
 
 Boise State University CS 481 - Senior Design Project
 

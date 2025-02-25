@@ -1,0 +1,4 @@
+year,code,title,street,city,state,zip,phone,tag,staff,doctorates,numTechsAndAuxs,fields,note
+1993,Z24,ZYCAD CORP,47100 Bayside Pkwy,Fremont,CA,94538-9942,"415-688-7400",p,,,,"Develop hardware accelerators and simulations for super computers",
+1993,Z25,"ZYGO, INC",Laurel Brook Rd,Middlefield,CT,06455,"203-347-8506",p,,,,"Product-oriented research in laser interferometers, microprocessor-based interferometer data analyzers, laser telemetric systems and close-tolerance optical components",
+1993,Z26,ZYMARK CORPORATION,Zymark Center,Hopkinton,MA,01748,"508-435-9501",pg,15,6,10,"Development of scientific instruments using robots",

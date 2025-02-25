@@ -1,0 +1,6 @@
+year,code,title,street,city,state,zip,phone,tag,staff,doctorates,numTechsAndAuxs,fields,note
+1990,A39,ACME ELECTRIC CORPORATION,400 Quaker Rd,East Aurora,NY,14052-2199,"716-655-3800",pg,4,3,3,"Applied research in the field of electrical and electronic control and power conversion equipment",
+1990,A39.1,"ACME ELECTRIC CORPORATION-ACME Transformer Division",Rte 4,Lumberton,NC,28358,"919-738-4251",p,5,2,,"Applied and product-oriented research in the field of dry-type distribution and machine tool transformers",
+1990,A39.2,"ACME ELECTRIC CORPORATION-ACME-URDC, INC","7915 South, 1530 W, PO Box 10",West Jordan,UT,84084,"801-561-9385",gi,15,1,20,"Battery research and charging methods-nickel cadmium; new circuit designs for battery chargers for aircraft using microprocessors; power supplies, UPS systems; AC-DC converters",
+1990,A39.3,"ACME ELECTRIC CORPORATION-Power Products Group",20 Water St,Cuba,NY,14727,"716-968-2400",p,20,1,11,"Applied and product-oriented research in electronic power conversion equipment for custom power supplies and automotive battery chargers",
+1990,A39.4,"ACME ELECTRIC CORPORATION-Power Products Group",5416 W Amelia Earhart Dr,Salt Lake City,UT,84116,"801-539-0227",p,7,,,"Applied and product-oriented research in the field of transformers and electric power conversion equipment",
