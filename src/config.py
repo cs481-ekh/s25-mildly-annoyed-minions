@@ -22,5 +22,4 @@ def set_tesseract_path():
 
     raise FileNotFoundError("Tesseract is not installed or not found.")
 
-# Call this in main.py before using OCR
 set_tesseract_path()
