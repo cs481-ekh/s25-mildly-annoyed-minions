@@ -1,5 +1,5 @@
 import os
-from tkinter import filedialog, scrolledtext
+from tkinter import filedialog, scrolledtext, messagebox
 
 try:
     from Tkinter import *
@@ -28,7 +28,7 @@ file_pic_base_64 = ('iVBORw0KGgoAAAANSUhEUgAAADAAAAAwCAMAAABg3Am1AAAAk1BMVEVHcEz
 
 class GUI():
     def __init__(self, master):
-        self.master = master
+        self.master = master  # Reference to the AppController
         self.root = TkinterDnD.Tk()
         self.root.title("R&D Labs Directory Parser")
         self.root.geometry("600x400")
@@ -36,10 +36,9 @@ class GUI():
         self.master.current_state = AppState.FILE_SELECTION
         self.added_files = []
         self.inner_frame = None
-
+        self.csv_files = []  # Initialize csv_files list
         self.create_main_frame()
         self.generate_frame()
-
         global file_icon
         file_icon = PhotoImage(data=file_pic_base_64)
 
@@ -50,9 +49,7 @@ class GUI():
     def generate_frame(self, data=None):
         if self.main_frame:
             self.main_frame.destroy()
-
         self.create_main_frame()
-
         if self.state == AppState.FILE_SELECTION:
             self.create_file_selection_frame()
         elif self.state == AppState.PROCESSING:
@@ -72,42 +69,29 @@ class GUI():
     def create_file_selection_frame(self):
         frame = Frame(self.main_frame)
         frame.pack(expand=True, fill="both")
-
         frame.grid_rowconfigure(1, weight=1)
         frame.grid_columnconfigure(0, weight=1)
-
         main_frame = Frame(frame)
         main_frame.grid(row=1, column=0, padx=5, pady=5, sticky="news")
-
         main_frame.grid_rowconfigure(0, weight=1)
         main_frame.grid_columnconfigure(0, weight=1)
-
         self.canvas = Canvas(main_frame, bg="white", relief="sunken", bd=1)
         self.canvas.grid(row=0, column=0, padx=5, pady=5, sticky="news")
-
         self.scrollbar = Scrollbar(main_frame, orient="vertical", command=self.canvas.yview)
         self.scrollbar.grid(row=0, column=1, sticky="ns")
-
         self.canvas.configure(yscrollcommand=self.scrollbar.set)
-
         self.inner_frame = Frame(self.canvas, bg="lightgray")
         self.inner_window = self.canvas.create_window((0, 0), window=self.inner_frame, anchor="nw")
-
         self.canvas.drop_target_register(DND_FILES)
         self.canvas.dnd_bind("<<Drop>>", self.drop_file)
-
         self.canvas.filenames = {}
         self.canvas.nextcoords = [60, 20]
-
         bottom_frame = Frame(frame)
         bottom_frame.grid(row=2, column=0, columnspan=2, pady=10, sticky="ew")
-
         self.status_label = Label(bottom_frame, text="", fg="black", anchor="w", width=50)
         self.status_label.pack(side="left", padx=10)
-
         self.select_button = Button(bottom_frame, text="Select Files", command=self.add_files)
         self.select_button.pack(side="right", padx=10)
-
         self.process_button = Button(bottom_frame, text="Run OCR", command=self.process_files)
         self.process_button.pack(side="right", padx=10)
 
@@ -117,26 +101,24 @@ class GUI():
     def create_results_frame(self, results):
         frame = Frame(self.main_frame)
         frame.pack(expand=True, fill="both")
-
         main_frame = Frame(frame)
         main_frame.grid(row=1, column=0, padx=5, pady=5, sticky="news")
-
         main_frame.grid_rowconfigure(0, weight=1)
         main_frame.grid_columnconfigure(0, weight=1)
-
         frame.grid_columnconfigure(0, weight=1)
         frame.grid_rowconfigure(0, weight=1)
-
         self.inner_frame = Frame(frame)
         self.inner_frame.grid(row=0, column=0, padx=10, pady=10, sticky="news")
-
         label = Label(self.inner_frame, text="OCR Results", font=("Arial", 14, "bold"))
         label.pack(pady=10)
-
         text_area = scrolledtext.ScrolledText(self.inner_frame, wrap=WORD, height=15)
         text_area.pack(expand=True, fill="both", padx=10, pady=5)
         text_area.insert(END, results)
         text_area.config(state=DISABLED)
+        # Add a "Download CSV" button
+        if hasattr(self.master, 'csv_files') and self.master.csv_files:
+            download_button = Button(self.inner_frame, text="Download CSV", command=self.download_csv)
+            download_button.pack(pady=10)
 
     def create_complete_frame(self):
         pass
@@ -155,7 +137,6 @@ class GUI():
             if self.is_pdf(file) and file not in self.added_files:
                 self.add_file_to_canvas(file)
                 valid_count += 1
-
         self.update_status(valid_count, duplicate_count, invalid_count)
 
     def add_files(self):
@@ -168,24 +149,17 @@ class GUI():
             else:
                 print(f"Skipping Previously Added File: {file}")
                 duplicate_count += 1
-
         self.update_status(valid_count, duplicate_count, invalid_count)
 
     def add_file_to_canvas(self, file_path):
         id1 = self.canvas.create_image(self.canvas.nextcoords[0], self.canvas.nextcoords[1], image=file_icon, anchor='n', tags=('file',))
         id2 = self.canvas.create_text(self.canvas.nextcoords[0], self.canvas.nextcoords[1] + 50, text=os.path.basename(file_path), anchor='n', justify='center', width=90)
-        # self.canvas.filenames = getattr(self.canvas, 'filenames', {})
         self.canvas.filenames[id1] = file_path
         self.canvas.filenames[id2] = file_path
-
-        self.canvas.filenames[id1] = file_path
-        self.canvas.filenames[id2] = file_path
-
         if self.canvas.nextcoords[0] > 450:
             self.canvas.nextcoords = [60, self.canvas.nextcoords[1] + 130]
         else:
             self.canvas.nextcoords = [self.canvas.nextcoords[0] + 100, self.canvas.nextcoords[1]]
-
         self.added_files.append(file_path)
         print("Added file: ", file_path)
 
@@ -197,13 +171,22 @@ class GUI():
             status_parts.append(f"Skipped {duplicate} DUPLICATE{'S' if duplicate > 1 else ''}")
         if invalid > 0:
             status_parts.append(f"Ignored {invalid} NON-VALID File{'s' if invalid > 1 else ''}")
-
         self.status_label.config(text=" | ".join(status_parts), fg="blue")
 
     def is_pdf(self, file_path):
         return file_path.lower().endswith('.pdf')
 
+    def download_csv(self):
+        if hasattr(self.master, 'csv_files') and self.master.csv_files:
+            for csv_path in self.master.csv_files:
+                try:
+                    os.startfile(csv_path)  # Open the CSV file with the default application
+                except Exception as e:
+                    messagebox.showerror("Error", f"Failed to open CSV file: {str(e)}")
+        else:
+            messagebox.showinfo("Info", "No CSV files available to download.")
+
     def process_files(self):
         if self.added_files:
-            self.set_state(AppState.PROCESSING)
+            # Delegate file processing to the AppController
             self.master.process_files(self.added_files)
