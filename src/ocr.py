@@ -12,12 +12,11 @@ class OCRProcessor:
     def __init__(self, master):
         self.master = master
 
-    @staticmethod
-    def extract_text_from_pdf(pdf_path):
+    def extract_text_from_pdf(self, pdf_path):
         try:
             set_tesseract_path()  # Call the function from config.py
         except FileNotFoundError as e:
-            messagebox.showerror("Tesseract Error", str(e))
+            self.master.gui.handle_error("Tesseract Error", str(e))
             return None, None
 
         extracted_text = ""
@@ -26,7 +25,8 @@ class OCRProcessor:
         try:
             pdf_document = fitz.open(pdf_path)
         except Exception as e:
-            messagebox.showerror("Error", f"Error opening PDF: {e}")
+            # messagebox.showerror("Error", f"Error opening PDF: {e}")
+            self.master.gui.handle_error("File Handling Error", "Error opening PDF file: str(e)")
             return None, None
 
         for page_num in range(len(pdf_document)):
@@ -45,23 +45,9 @@ class OCRProcessor:
             except Exception as e:
                 extracted_text += f"\nError processing page {page_num}: {e}\n"
 
-        # Save extracted text to CSV
-        if extracted_text:
-            try:
-                with open(csv_path, mode='w', newline='', encoding='utf-8') as file:
-                    writer = csv.writer(file)
-                    writer.writerow(['Page Number', 'Extracted Text'])
-                    for page_num, text in enumerate(extracted_text.split('\n\n')):
-                        writer.writerow([page_num + 1, text])
-            except Exception as e:
-                messagebox.showerror("Error", f"Failed to save CSV file: {str(e)}")
-                return extracted_text, None
+        return csv_path, extracted_text
 
-        return extracted_text, csv_path
-
-    @staticmethod
-    def save_csv(extracted_text, csv_path):
-        """Save extracted text to a CSV file."""
+    def save_csv(self, extracted_text, csv_path):
         try:
             with open(csv_path, mode='w', newline='', encoding='utf-8') as file:
                 writer = csv.writer(file)
@@ -70,5 +56,5 @@ class OCRProcessor:
                     writer.writerow([page_num + 1, text])
             return csv_path
         except Exception as e:
-            messagebox.showerror("Error", f"Failed to save CSV file: {str(e)}")
+            self.master.gui.handle_error("File Save Error", f"Failed to save CSV file: {str(e)}")
             return None
