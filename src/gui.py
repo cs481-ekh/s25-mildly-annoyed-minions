@@ -36,7 +36,7 @@ class GUI():
         self.master.current_state = AppState.FILE_SELECTION
         self.added_files = []
         self.inner_frame = None
-        self.csv_files = []  # Initialize csv_files list
+        # self.csv_files = []  # Initialize csv_files list
         self.create_main_frame()
         self.generate_frame()
         global file_icon
@@ -92,7 +92,7 @@ class GUI():
         self.status_label.pack(side="left", padx=10)
         self.select_button = Button(bottom_frame, text="Select Files", command=self.add_files)
         self.select_button.pack(side="right", padx=10)
-        self.process_button = Button(bottom_frame, text="Run OCR", command=self.process_files)
+        self.process_button = Button(bottom_frame, text="Parse Files", command=self.process_files)
         self.process_button.pack(side="right", padx=10)
 
     def create_processing_frame(self):
@@ -115,10 +115,6 @@ class GUI():
         text_area.pack(expand=True, fill="both", padx=10, pady=5)
         text_area.insert(END, results)
         text_area.config(state=DISABLED)
-        # Add a "Download CSV" button
-        if hasattr(self.master, 'csv_files') and self.master.csv_files:
-            download_button = Button(self.inner_frame, text="Download CSV", command=self.download_csv)
-            download_button.pack(pady=10)
 
     def create_complete_frame(self):
         pass
@@ -176,17 +172,16 @@ class GUI():
     def is_pdf(self, file_path):
         return file_path.lower().endswith('.pdf')
 
-    def download_csv(self):
-        if hasattr(self.master, 'csv_files') and self.master.csv_files:
-            for csv_path in self.master.csv_files:
-                try:
-                    os.startfile(csv_path)  # Open the CSV file with the default application
-                except Exception as e:
-                    messagebox.showerror("Error", f"Failed to open CSV file: {str(e)}")
-        else:
-            messagebox.showinfo("Info", "No CSV files available to download.")
+    def handle_error(self, title, message, msg_type="error"):
+        msgbox_funcs = {
+            "error": messagebox.showerror,
+            "warning": messagebox.showwarning,
+            "info": messagebox.showinfo
+        }
+        msgbox_funcs.get(msg_type, messagebox.showerror)(title, message)
 
     def process_files(self):
         if self.added_files:
-            # Delegate file processing to the AppController
             self.master.process_files(self.added_files)
+        else:
+            self.handle_error("Processing Error", "Parsing failed. No PDF files were selected.")
