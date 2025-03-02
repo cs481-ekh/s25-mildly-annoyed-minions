@@ -36,7 +36,6 @@ class GUI():
         self.master.current_state = AppState.FILE_SELECTION
         self.added_files = []
         self.inner_frame = None
-        # self.csv_files = []  # Initialize csv_files list
         self.create_main_frame()
         self.generate_frame()
         global file_icon
@@ -46,7 +45,7 @@ class GUI():
         self.main_frame = Frame(self.root)
         self.main_frame.pack(expand=True, fill="both")
 
-    def generate_frame(self, data=None):
+    def generate_frame(self):
         if self.main_frame:
             self.main_frame.destroy()
         self.create_main_frame()
@@ -55,16 +54,18 @@ class GUI():
         elif self.state == AppState.PROCESSING:
             self.create_processing_frame()
         elif self.state == AppState.RESULTS:
-            self.create_results_frame(data)
+            self.create_results_frame()
         elif self.state == AppState.COMPLETE:
             self.create_complete_frame()
+        elif self.state == AppState.ERROR:
+            self.create_error_frame()
         else:
             print(f"ERROR: No frame found for state: {self.state}")
             return
 
-    def set_state(self, new_state, data=None):
+    def set_state(self, new_state):
         self.state = new_state
-        self.generate_frame(data)
+        self.generate_frame()
 
     def create_file_selection_frame(self):
         frame = Frame(self.main_frame)
@@ -98,7 +99,7 @@ class GUI():
     def create_processing_frame(self):
         pass
 
-    def create_results_frame(self, results):
+    def create_results_frame(self):
         frame = Frame(self.main_frame)
         frame.pack(expand=True, fill="both")
         main_frame = Frame(frame)
@@ -113,10 +114,15 @@ class GUI():
         label.pack(pady=10)
         text_area = scrolledtext.ScrolledText(self.inner_frame, wrap=WORD, height=15)
         text_area.pack(expand=True, fill="both", padx=10, pady=5)
-        text_area.insert(END, results)
+        text_area.insert(END, self.master.parsed_files[0][1]) # REPLACE WITH ACTUAL RESULTS DISPLAY AND HANDLING
         text_area.config(state=DISABLED)
+        download_button = Button(self.inner_frame, text="Save Parsed Files", command=self.master.save_parsed_files)
+        download_button.pack(pady=10)
 
     def create_complete_frame(self):
+        pass
+
+    def create_error_frame(self):
         pass
 
     def drop_file(self, event):
@@ -176,12 +182,17 @@ class GUI():
         msgbox_funcs = {
             "error": messagebox.showerror,
             "warning": messagebox.showwarning,
-            "info": messagebox.showinfo
+            "info": messagebox.showinfo,
+            "confirm": messagebox.askyesnocancel
+            # OTHER TYPES OF ERROR / NOTIFICATION MESSAGING SUPPORTED
         }
-        msgbox_funcs.get(msg_type, messagebox.showerror)(title, message)
+        msgbox_funcs.get(msg_type, messagebox.showerror)(title, message, parent=self.main_frame)
 
     def process_files(self):
         if self.added_files:
             self.master.process_files(self.added_files)
         else:
             self.handle_error("Processing Error", "Parsing failed. No PDF files were selected.")
+
+    def handle_results(self):
+        pass
