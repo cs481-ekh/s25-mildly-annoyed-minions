@@ -4,36 +4,45 @@ from states import AppState
 
 class AppController:
     def __init__(self):
-        self.current_state = None
-        self.selected_file = None
-        self.extracted_text = ""
-        self.csv_files = []  # List to store CSV file paths
         self.gui = GUI(self)
         self.ocr_processor = OCRProcessor(self)
+        self.current_state = None
+        self.parsed_files = []
 
-    def set_state(self, new_state, data=None):
+    def set_state(self, new_state):
         self.current_state = new_state
-        self.gui.set_state(new_state, data)
+        self.gui.set_state(new_state)
 
     def process_files(self, file_paths):
-        if not file_paths:
-            self.gui.show_error("No file selected.")
+        self.set_state(AppState.PROCESSING)
+        failed_files = []
+
+        for file_path in file_paths:
+            parsed_result = self.ocr_processor.extract_text_from_pdf(file_path)
+
+            if parsed_result is None or not all(parsed_result):
+                failed_files.append(file_path)
+                continue  # Skip to next file
+
+            csv_path, extracted_text = parsed_result
+            self.parsed_files.append((csv_path, extracted_text))
+
+        if failed_files:
+            failed_message = "\n".join(failed_files)
+            self.gui.handle_error("Processing Error", f"Some files failed:\n{failed_message}")
+
+        self.set_state(AppState.RESULTS)
+
+    def save_parsed_files(self):
+        if not self.parsed_files:
+            self.gui.handle_error("Save Error", "No successfully parsed files to save.")
             return
 
-        self.csv_files = []  # Reset CSV files list
-        for file_path in file_paths:
-            # Call the OCRProcessor to extract text and generate CSV
-            extracted_text, csv_path = self.ocr_processor.extract_text_from_pdf(file_path)
-            if extracted_text:
-                self.extracted_text += extracted_text + "\n"  # Append extracted text
-            if csv_path:
-                self.csv_files.append(csv_path)  # Append CSV file path
-
-        # Pass the extracted text and CSV files to the GUI
-        if self.csv_files:
-            self.set_state(AppState.RESULTS, self.extracted_text)
-        else:
-            self.gui.show_error("No CSV files were generated.")
+        for csv_path, extracted_text in self.parsed_files:
+            if csv_path and extracted_text:
+                saved_path = self.ocr_processor.save_csv(extracted_text, csv_path)
+                if not saved_path:
+                    self.gui.handle_error("Save Error", f"Failed to save: {csv_path}")
 
     def run(self):
         self.gui.root.mainloop()
