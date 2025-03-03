@@ -7,7 +7,7 @@ except ImportError:
     from tkinter import *
 
 from tkinterdnd2 import TkinterDnD, DND_FILES
-from states import AppState
+from src.states import AppState
 
 file_pic_base_64 = ('iVBORw0KGgoAAAANSUhEUgAAADAAAAAwCAMAAABg3Am1AAAAk1BMVEVHcEzJz9j/Vi/'
                     'jMQbo6+7FytL/VS/ovrbq6+/e4Obs9fvhZUfbLwnYy835UizR1N3/VjDM0tn9XzzHzdb'
