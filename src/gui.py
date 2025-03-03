@@ -28,13 +28,14 @@ file_pic_base_64 = ('iVBORw0KGgoAAAANSUhEUgAAADAAAAAwCAMAAABg3Am1AAAAk1BMVEVHcEz
 
 class GUI():
     def __init__(self, master):
-        self.master = master  # Reference to the AppController
+        self.master = master
         self.root = TkinterDnD.Tk()
         self.root.title("R&D Labs Directory Parser")
-        self.root.geometry("600x400")
+        self.root.geometry("600x500")
         self.state = AppState.FILE_SELECTION
         self.master.current_state = AppState.FILE_SELECTION
         self.added_files = []
+        self.selected_files = []
         self.inner_frame = None
         self.create_main_frame()
         self.generate_frame()
@@ -86,7 +87,10 @@ class GUI():
         self.canvas.drop_target_register(DND_FILES)
         self.canvas.dnd_bind("<<Drop>>", self.drop_file)
         self.canvas.filenames = {}
+        self.canvas.file_icon_ids = {}
+        self.canvas.file_bg_ids = {}
         self.canvas.nextcoords = [60, 20]
+        self.canvas.bind("<Button-1>", self.handle_canvas_click)
         bottom_frame = Frame(frame)
         bottom_frame.grid(row=2, column=0, columnspan=2, pady=10, sticky="ew")
         self.status_label = Label(bottom_frame, text="", fg="black", anchor="w", width=50)
@@ -114,7 +118,7 @@ class GUI():
         label.pack(pady=10)
         text_area = scrolledtext.ScrolledText(self.inner_frame, wrap=WORD, height=15)
         text_area.pack(expand=True, fill="both", padx=10, pady=5)
-        text_area.insert(END, self.master.parsed_files[0][1]) # REPLACE WITH ACTUAL RESULTS DISPLAY AND HANDLING
+        text_area.insert(END, self.master.parsed_files[0][1])  # REPLACE WITH ACTUAL RESULTS DISPLAY AND HANDLING
         text_area.config(state=DISABLED)
         download_button = Button(self.inner_frame, text="Save Parsed Files", command=self.master.save_parsed_files)
         download_button.pack(pady=10)
@@ -154,16 +158,93 @@ class GUI():
         self.update_status(valid_count, duplicate_count, invalid_count)
 
     def add_file_to_canvas(self, file_path):
-        id1 = self.canvas.create_image(self.canvas.nextcoords[0], self.canvas.nextcoords[1], image=file_icon, anchor='n', tags=('file',))
-        id2 = self.canvas.create_text(self.canvas.nextcoords[0], self.canvas.nextcoords[1] + 50, text=os.path.basename(file_path), anchor='n', justify='center', width=90)
-        self.canvas.filenames[id1] = file_path
-        self.canvas.filenames[id2] = file_path
+        bg_rect = self.canvas.create_rectangle(
+            self.canvas.nextcoords[0] - 40,
+            self.canvas.nextcoords[1] - 10,
+            self.canvas.nextcoords[0] + 40,
+            self.canvas.nextcoords[1] + 90,
+            fill="", outline="", tags=('file_bg',)
+        )
+
+        icon_id = self.canvas.create_image(
+            self.canvas.nextcoords[0],
+            self.canvas.nextcoords[1],
+            image=file_icon,
+            anchor='n',
+            tags=('file',)
+        )
+
+        text_id = self.canvas.create_text(
+            self.canvas.nextcoords[0],
+            self.canvas.nextcoords[1] + 50,
+            text=os.path.basename(file_path),
+            anchor='n',
+            justify='center',
+            width=90
+        )
+
+        self.canvas.filenames[icon_id] = file_path
+        self.canvas.filenames[text_id] = file_path
+        self.canvas.filenames[bg_rect] = file_path
+
+        self.canvas.file_icon_ids[file_path] = icon_id
+        self.canvas.file_bg_ids[file_path] = bg_rect
+
         if self.canvas.nextcoords[0] > 450:
             self.canvas.nextcoords = [60, self.canvas.nextcoords[1] + 130]
         else:
             self.canvas.nextcoords = [self.canvas.nextcoords[0] + 100, self.canvas.nextcoords[1]]
+
         self.added_files.append(file_path)
         print("Added file: ", file_path)
+
+    def handle_canvas_click(self, event):
+        clicked_items = self.canvas.find_withtag(CURRENT)
+
+        if not clicked_items:
+            self.deselect_all_files()
+            return
+
+        clicked_id = clicked_items[0]
+
+        if clicked_id in self.canvas.filenames:
+            file_path = self.canvas.filenames[clicked_id]
+            icon_id = self.canvas.file_icon_ids.get(file_path)
+            bg_id = self.canvas.file_bg_ids.get(file_path)
+
+            if icon_id in self.selected_files:
+                self.deselect_file(file_path, bg_id)
+            else:
+                self.select_file(file_path, bg_id)
+        else:
+            self.deselect_all_files()
+
+    def select_file(self, file_path, bg_id):
+        self.canvas.itemconfig(bg_id, fill="#add8e6", outline="#4682b4")  # Light blue background
+        self.selected_files.append(self.canvas.file_icon_ids[file_path])
+        print(f"Selected file: {file_path}")
+
+    def deselect_file(self, file_path, bg_id):
+        self.canvas.itemconfig(bg_id, fill="", outline="")
+        if self.canvas.file_icon_ids[file_path] in self.selected_files:
+            self.selected_files.remove(self.canvas.file_icon_ids[file_path])
+        print(f"Deselected file: {file_path}")
+
+    def deselect_all_files(self):
+        for file_path in self.added_files:
+            if file_path in self.canvas.file_bg_ids:
+                bg_id = self.canvas.file_bg_ids[file_path]
+                self.canvas.itemconfig(bg_id, fill="", outline="")
+
+        self.selected_files = []
+        print("Deselected all files")
+
+    def get_selected_files(self):
+        selected_paths = []
+        for icon_id in self.selected_files:
+            if icon_id in self.canvas.filenames:
+                selected_paths.append(self.canvas.filenames[icon_id])
+        return selected_paths
 
     def update_status(self, valid, duplicate, invalid):
         status_parts = []
