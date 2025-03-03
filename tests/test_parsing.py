@@ -28,9 +28,9 @@ from src.ocr import OCRProcessor
 ])
 @pytest.mark.slow
 def test_parsing(pdf_path):
-    text, _ = OCRProcessor.extract_text_from_pdf(pdf_path)
-    csv_path = pdf_path.replace(".pdf", ".csv")
+    csv_path, extracted_text = OCRProcessor.extract_text_from_pdf(pdf_path)
+    OCRProcessor.save_csv(csv_path, extracted_text)
     os.remove(csv_path)
 
-    assert text is not None, "Returned text is None"
-    assert text.strip(), "Returned text is empty after trimming"
+    assert extracted_text is not None, "Returned text is None"
+    assert extracted_text.strip(), "Returned text is empty after trimming"
