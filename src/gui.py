@@ -38,6 +38,7 @@ class GUI():
         self.selected_files = []
         self.inner_frame = None
         self.status_label = None
+        self.drag_drop_label = None
         self.create_main_frame()
         self.generate_frame()
         global file_icon
@@ -88,7 +89,8 @@ class GUI():
         main_frame.grid(row=1, column=0, padx=5, pady=5, sticky="news")
         main_frame.grid_rowconfigure(0, weight=1)
         main_frame.grid_columnconfigure(0, weight=1)
-        self.canvas = Canvas(main_frame, bg="white", relief="sunken", bd=1)
+        canvas_bg = "#f7f7f7" if not self.added_files else "white"
+        self.canvas = Canvas(main_frame, bg=canvas_bg, relief="sunken", bd=1)
         self.canvas.grid(row=0, column=0, padx=5, pady=5, sticky="news")
         self.scrollbar = Scrollbar(main_frame, orient="vertical", command=self.canvas.yview)
         self.scrollbar.grid(row=0, column=1, sticky="ns")
@@ -102,6 +104,10 @@ class GUI():
         self.canvas.file_bg_ids = {}
         self.canvas.nextcoords = [60, 20]
         self.canvas.bind("<Button-1>", self.handle_canvas_click)
+        if not self.added_files:
+            self.drag_drop_label = Label(self.canvas, text="Drag & Drop PDF Files Here",
+                                         font=("Arial", 10), fg="#555555", bg=canvas_bg)
+            self.drag_drop_label.pack(expand=True, fill="both")
         bottom_frame = Frame(frame)
         bottom_frame.grid(row=2, column=0, columnspan=2, pady=10, sticky="ew")
         self.status_label = Label(bottom_frame, text="", fg="black", anchor="w", width=50)
@@ -153,6 +159,8 @@ class GUI():
                 duplicate_count += 1
                 continue
             if self.is_pdf(file) and file not in self.added_files:
+                if not self.added_files:
+                    self.remove_drag_drop_label()
                 self.add_file_to_canvas(file)
                 valid_count += 1
 
@@ -166,8 +174,11 @@ class GUI():
         valid_count, duplicate_count = 0, 0
         for file in filenames:
             if file not in self.added_files:
+                if not self.added_files:
+                    self.remove_drag_drop_label()
                 self.add_file_to_canvas(file)
                 valid_count += 1
+
             else:
                 self.log_message(f"Skipping previously added file: {file}", "info")
                 duplicate_count += 1
@@ -241,6 +252,12 @@ class GUI():
 
         self.update_remove_button_visibility()
 
+    def remove_drag_drop_label(self):
+        if hasattr(self, 'drag_drop_label') and self.drag_drop_label:
+            self.drag_drop_label.destroy()
+            self.drag_drop_label = None
+            self.canvas.config(bg="white")
+
     def update_remove_button_visibility(self):
         if self.selected_files:
             self.remove_button.pack(side="right", padx=2, pady=2)
@@ -310,7 +327,9 @@ class GUI():
 
         if not self.added_files:
             self.canvas.nextcoords = [60, 20]
-
+            self.drag_drop_label = Label(self.canvas, text="Drag & Drop PDF Files Here",
+                                        font=("Arial", 10), fg="#555555", bg="#f7f7f7")
+            self.drag_drop_label.pack(expand=True, fill="both")
         self.update_file_status(remove=removed_count)
 
     def is_pdf(self, file_path):
