@@ -5,3 +5,4 @@ class AppState(Enum):
     PROCESSING = "processing"
     RESULTS = "results"
     COMPLETE = "complete"
+    ERROR = "error"

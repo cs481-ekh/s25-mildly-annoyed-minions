@@ -11,9 +11,8 @@ class OCRProcessor:
     def __init__(self, master):
         self.master = master
 
-
     @staticmethod
-    def convert_pdf_to_tiff(pdf_path):
+    def convert_pdf_to_tiff(self, pdf_path):
         """Converts the input PDF to a TIFF image."""
         try:
             images = convert_from_path(
@@ -35,12 +34,11 @@ class OCRProcessor:
             messagebox.showerror("Error", f"Error opening PDF: {e}")
             return None
 
-    @staticmethod
-    def extract_text_from_pdf(pdf_path):
+    def extract_text_from_pdf(self, pdf_path):
         try:
             set_tesseract_path()  # Call the function from config.py
         except FileNotFoundError as e:
-            messagebox.showerror("Tesseract Error", str(e))
+            self.master.gui.handle_error("Tesseract Error", str(e))
             return None, None
 
         extracted_text = ""
@@ -60,12 +58,9 @@ class OCRProcessor:
 
                 os.remove(image_path)  # Delete file once done with it
 
-        # Save extracted text to CSV
-        return extracted_text, OCRProcessor.save_csv(extracted_text, csv_path)
+        return csv_path, extracted_text
 
-    @staticmethod
-    def save_csv(extracted_text, csv_path):
-        """Save extracted text to a CSV file."""
+    def save_csv(self, extracted_text, csv_path):
         try:
             with open(csv_path, mode='w', newline='', encoding='utf-8') as file:
                 writer = csv.writer(file)
@@ -74,5 +69,5 @@ class OCRProcessor:
                     writer.writerow([page_num + 1, text])
             return csv_path
         except Exception as e:
-            messagebox.showerror("Error", f"Failed to save CSV file: {str(e)}")
+            self.master.gui.handle_error("File Save Error", f"Failed to save CSV file: {str(e)}")
             return None
