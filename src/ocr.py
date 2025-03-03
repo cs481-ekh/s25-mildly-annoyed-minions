@@ -11,29 +11,6 @@ class OCRProcessor:
     def __init__(self, master):
         self.master = master
 
-    @staticmethod
-    def convert_pdf_to_tiff(self, pdf_path):
-        """Converts the input PDF to a TIFF image."""
-        try:
-            images = convert_from_path(
-                pdf_path,
-                grayscale=True,
-                fmt='tiff',
-            )
-
-            tiff_path = pdf_path.replace(".pdf", ".tif")  # Define TIFF file path
-
-            if len(images) != 0:
-                images[0].save(tiff_path, save_all=True, append_images=images[1:])
-
-                return tiff_path
-            else:
-                messagebox.showerror("Error", "Error converting PDF to TIFF")
-                return None
-        except Exception as e:
-            messagebox.showerror("Error", f"Error opening PDF: {e}")
-            return None
-
     def extract_text_from_pdf(self, pdf_path):
         try:
             set_tesseract_path()  # Call the function from config.py
@@ -44,8 +21,7 @@ class OCRProcessor:
         extracted_text = ""
         csv_path = pdf_path.replace(".pdf", ".csv")  # Define CSV file path
 
-
-        image_path = OCRProcessor.convert_pdf_to_tiff(pdf_path)  # Get path to TIFF converted image
+        image_path = self.convert_pdf_to_tiff(pdf_path)  # Get path to TIFF converted image
         if image_path is not None:
             with Image.open(image_path) as img:
                 for page_num, frame in enumerate(ImageSequence.Iterator(img)):
@@ -60,7 +36,28 @@ class OCRProcessor:
 
         return csv_path, extracted_text
 
-    def save_csv(self, extracted_text, csv_path):
+    def convert_pdf_to_tiff(self, pdf_path):
+        try:
+            images = convert_from_path(
+                pdf_path,
+                grayscale=True,
+                fmt='tiff',
+            )
+
+            tiff_path = pdf_path.replace(".pdf", ".tif")  # Define TIFF file path
+
+            if len(images) != 0:
+                images[0].save(tiff_path, save_all=True, append_images=images[1:])
+
+                return tiff_path
+            else:
+                self.master.gui.handle_error("Error", f"Error converting PDF to TIFF: {pdf_path}")
+                return None
+        except Exception as e:
+            self.master.gui.handle_error("File Handling Error", f"Unable to open file: {pdf_path}")
+            return None
+
+    def save_csv(self, csv_path, extracted_text):
         try:
             with open(csv_path, mode='w', newline='', encoding='utf-8') as file:
                 writer = csv.writer(file)
