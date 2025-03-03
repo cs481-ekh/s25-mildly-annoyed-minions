@@ -37,6 +37,7 @@ class GUI():
         self.added_files = []
         self.selected_files = []
         self.inner_frame = None
+        self.status_label = None
         self.create_main_frame()
         self.generate_frame()
         global file_icon
@@ -61,11 +62,13 @@ class GUI():
         elif self.state == AppState.ERROR:
             self.create_error_frame()
         else:
-            print(f"ERROR: No frame found for state: {self.state}")
+            self.log_message(f"ERROR: No frame found for state: {self.state}", "error")
             return
 
     def set_state(self, new_state):
+        old_state = self.state
         self.state = new_state
+        self.log_message(f"State changed from {old_state} to {new_state}", "info")
         self.generate_frame()
 
     def create_file_selection_frame(self):
@@ -73,6 +76,14 @@ class GUI():
         frame.pack(expand=True, fill="both")
         frame.grid_rowconfigure(1, weight=1)
         frame.grid_columnconfigure(0, weight=1)
+        top_frame = Frame(frame, height=30)
+        top_frame.grid(row=0, column=0, padx=5, pady=5, sticky="ew")
+        top_frame.grid_columnconfigure(0, weight=1)
+        top_frame.pack_propagate(False)
+        self.remove_button_container = Frame(top_frame)
+        self.remove_button_container.pack(side="right", padx=5)
+        self.remove_button = Button(self.remove_button_container, text="X", command=self.remove_selected_files,
+                                    fg="white", bg="red", width=3, padx=4, pady=2)
         main_frame = Frame(frame)
         main_frame.grid(row=1, column=0, padx=5, pady=5, sticky="news")
         main_frame.grid_rowconfigure(0, weight=1)
@@ -135,27 +146,33 @@ class GUI():
         for file in files:
             if not self.is_pdf(file):
                 invalid_count += 1
+                self.log_message(f"Invalid file type: {file}", "warning")
                 continue
             if self.is_pdf(file) and file in self.added_files:
-                print(f"Skipping Previously Added File: {file}")
+                self.log_message(f"Skipping previously added file: {file}", "info")
                 duplicate_count += 1
                 continue
             if self.is_pdf(file) and file not in self.added_files:
                 self.add_file_to_canvas(file)
                 valid_count += 1
-        self.update_status(valid_count, duplicate_count, invalid_count)
+
+        self.update_file_status(valid=valid_count, duplicate=duplicate_count, invalid=invalid_count)
 
     def add_files(self):
+        if self.status_label:
+            self.status_label.config(text="")
+
         filenames = filedialog.askopenfilenames(filetypes=[("PDF files", "*.pdf")])
-        valid_count, duplicate_count, invalid_count = 0, 0, 0
+        valid_count, duplicate_count = 0, 0
         for file in filenames:
             if file not in self.added_files:
                 self.add_file_to_canvas(file)
                 valid_count += 1
             else:
-                print(f"Skipping Previously Added File: {file}")
+                self.log_message(f"Skipping previously added file: {file}", "info")
                 duplicate_count += 1
-        self.update_status(valid_count, duplicate_count, invalid_count)
+
+        self.update_file_status(valid_count, duplicate_count)
 
     def add_file_to_canvas(self, file_path):
         bg_rect = self.canvas.create_rectangle(
@@ -196,9 +213,12 @@ class GUI():
             self.canvas.nextcoords = [self.canvas.nextcoords[0] + 100, self.canvas.nextcoords[1]]
 
         self.added_files.append(file_path)
-        print("Added file: ", file_path)
+        self.log_message(f"Added file: {os.path.basename(file_path)}", "success")
 
     def handle_canvas_click(self, event):
+        if self.status_label:
+            self.status_label.config(text="")
+
         clicked_items = self.canvas.find_withtag(CURRENT)
 
         if not clicked_items:
@@ -219,16 +239,24 @@ class GUI():
         else:
             self.deselect_all_files()
 
+        self.update_remove_button_visibility()
+
+    def update_remove_button_visibility(self):
+        if self.selected_files:
+            self.remove_button.pack(side="right", padx=2, pady=2)
+        else:
+            self.remove_button.pack_forget()
+
     def select_file(self, file_path, bg_id):
         self.canvas.itemconfig(bg_id, fill="#add8e6", outline="#4682b4")  # Light blue background
         self.selected_files.append(self.canvas.file_icon_ids[file_path])
-        print(f"Selected file: {file_path}")
+        self.log_message(f"Selected file: {os.path.basename(file_path)}")
 
     def deselect_file(self, file_path, bg_id):
         self.canvas.itemconfig(bg_id, fill="", outline="")
         if self.canvas.file_icon_ids[file_path] in self.selected_files:
             self.selected_files.remove(self.canvas.file_icon_ids[file_path])
-        print(f"Deselected file: {file_path}")
+        self.log_message(f"Deselected file: {os.path.basename(file_path)}")
 
     def deselect_all_files(self):
         for file_path in self.added_files:
@@ -236,8 +264,10 @@ class GUI():
                 bg_id = self.canvas.file_bg_ids[file_path]
                 self.canvas.itemconfig(bg_id, fill="", outline="")
 
+        self.log_message(f"Deselected {len(self.selected_files)} files")
         self.selected_files = []
-        print("Deselected all files")
+
+        self.update_remove_button_visibility()
 
     def get_selected_files(self):
         selected_paths = []
@@ -246,18 +276,94 @@ class GUI():
                 selected_paths.append(self.canvas.filenames[icon_id])
         return selected_paths
 
-    def update_status(self, valid, duplicate, invalid):
-        status_parts = []
-        if valid > 0:
-            status_parts.append(f"Added {valid} VALID File{'s' if valid > 1 else ''}")
-        if duplicate > 0:
-            status_parts.append(f"Skipped {duplicate} DUPLICATE{'S' if duplicate > 1 else ''}")
-        if invalid > 0:
-            status_parts.append(f"Ignored {invalid} NON-VALID File{'s' if invalid > 1 else ''}")
-        self.status_label.config(text=" | ".join(status_parts), fg="blue")
+    def remove_selected_files(self):
+        if not self.selected_files:
+            return
+
+        selected_paths = self.get_selected_files()
+        removed_count = len(selected_paths)
+
+        for file_path in selected_paths:
+            icon_id = self.canvas.file_icon_ids.get(file_path)
+            bg_id = self.canvas.file_bg_ids.get(file_path)
+
+            for item_id in self.canvas.find_all():
+                if self.canvas.filenames.get(item_id) == file_path:
+                    self.canvas.delete(item_id)
+
+            if icon_id in self.canvas.filenames:
+                del self.canvas.filenames[icon_id]
+            if bg_id in self.canvas.filenames:
+                del self.canvas.filenames[bg_id]
+
+            if file_path in self.canvas.file_icon_ids:
+                del self.canvas.file_icon_ids[file_path]
+            if file_path in self.canvas.file_bg_ids:
+                del self.canvas.file_bg_ids[file_path]
+
+            if file_path in self.added_files:
+                self.added_files.remove(file_path)
+
+        self.selected_files = []
+
+        self.update_remove_button_visibility()
+
+        if not self.added_files:
+            self.canvas.nextcoords = [60, 20]
+
+        self.update_file_status(remove=removed_count)
 
     def is_pdf(self, file_path):
         return file_path.lower().endswith('.pdf')
+
+    def update_file_status(self, valid=0, duplicate=0, invalid=0, remove=0):
+
+        status_parts = []
+        status_type = "info"
+
+        if valid > 0:
+            status_parts.append(f"Added {valid} valid file{'s' if valid > 1 else ''}")
+            status_type = "success"
+        if duplicate > 0:
+            status_parts.append(f"Skipped {duplicate} duplicate{'s' if duplicate > 1 else ''}")
+            status_type = "warning" if valid == 0 else status_type
+        if invalid > 0:
+            status_parts.append(f"Ignored {invalid} non-valid file{'s' if invalid > 1 else ''}")
+            status_type = "warning" if valid == 0 else status_type
+        if remove > 0:
+            status_parts.append(f"Removed {remove} file{'s' if remove > 1 else ''}")
+            status_type = "info"
+
+        if not status_parts:
+            status_message = "No files selected"
+            status_type = "info"
+        else:
+            status_message = " | ".join(status_parts)
+
+        self.update_status(status_message, status_type, True)
+
+    def update_status(self, message, status_type="info", update_label=False):
+        prefix = {
+            "info": "INFO",
+            "success": "SUCCESS",
+            "warning": "WARNING",
+            "error": "ERROR"
+        }.get(status_type, "INFO")
+
+        print(f"[{prefix}] {message}")
+
+        colors = {
+            "info": "blue",
+            "success": "green",
+            "warning": "orange",
+            "error": "red"
+        }
+
+        if update_label and self.status_label:
+            self.status_label.config(text=message, fg=colors.get(status_type, "black"))
+
+    def log_message(self, message, msg_type="info"):
+        self.update_status(message, msg_type)
 
     def handle_error(self, title, message, msg_type="error"):
         msgbox_funcs = {
@@ -267,9 +373,15 @@ class GUI():
             "confirm": messagebox.askyesnocancel
             # OTHER TYPES OF ERROR / NOTIFICATION MESSAGING SUPPORTED
         }
+
+        self.log_message(f"{title}: {message}", msg_type)
+
         msgbox_funcs.get(msg_type, messagebox.showerror)(title, message, parent=self.main_frame)
 
     def process_files(self):
+        if self.status_label:
+            self.status_label.config(text="")
+
         if self.added_files:
             self.master.process_files(self.added_files)
         else:
