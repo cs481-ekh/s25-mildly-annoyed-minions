@@ -2,7 +2,7 @@ import os
 import csv
 from tkinter import messagebox
 import pytesseract
-from config import set_tesseract_path
+from src.config import set_tesseract_path
 from pdf2image import convert_from_path
 from PIL import Image, ImageSequence
 

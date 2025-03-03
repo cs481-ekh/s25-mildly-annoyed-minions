@@ -1,6 +1,6 @@
-from ocr import OCRProcessor
-from gui import GUI
-from states import AppState
+from src.ocr import OCRProcessor
+from src.gui import GUI
+from src.states import AppState
 
 class AppController:
     def __init__(self):
