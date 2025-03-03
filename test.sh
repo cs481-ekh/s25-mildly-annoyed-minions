@@ -1,12 +1,12 @@
 #!/bin/bash
 
-if [ -d "test" ]; then
+if [ -d "tests" ]; then
   echo "Running tests..."
-  cd test || exit 3
+  cd tests || exit 3
   pytest
   exit $?
 else
-  echo "test dir doesn't exist. Nothing to do."
+  echo "tests dir doesn't exist. Nothing to do."
 
   exit 4
 fi
