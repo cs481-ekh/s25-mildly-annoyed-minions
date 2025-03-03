@@ -11,10 +11,32 @@ class OCRProcessor:
     def __init__(self, master):
         self.master = master
 
+    def extract_text_from_pdf(self, pdf_path):
+        try:
+            set_tesseract_path()  # Call the function from config.py
+        except FileNotFoundError as e:
+            self.master.gui.handle_error("Tesseract Error", str(e))
+            return None, None
 
-    @staticmethod
-    def convert_pdf_to_tiff(pdf_path):
-        """Converts the input PDF to a TIFF image."""
+        extracted_text = ""
+        csv_path = pdf_path.replace(".pdf", ".csv")  # Define CSV file path
+
+        image_path = self.convert_pdf_to_tiff(pdf_path)  # Get path to TIFF converted image
+        if image_path is not None:
+            with Image.open(image_path) as img:
+                for page_num, frame in enumerate(ImageSequence.Iterator(img)):
+                    try:
+                        text = pytesseract.image_to_string(frame, lang='eng')
+
+                        extracted_text += text + "\n"
+                    except Exception as e:
+                        extracted_text += f"\nError processing page {page_num + 1}: {e}\n"
+
+                os.remove(image_path)  # Delete file once done with it
+
+        return csv_path, extracted_text
+
+    def convert_pdf_to_tiff(self, pdf_path):
         try:
             images = convert_from_path(
                 pdf_path,
@@ -29,43 +51,13 @@ class OCRProcessor:
 
                 return tiff_path
             else:
-                messagebox.showerror("Error", "Error converting PDF to TIFF")
+                self.master.gui.handle_error("Error", f"Error converting PDF to TIFF: {pdf_path}")
                 return None
         except Exception as e:
-            messagebox.showerror("Error", f"Error opening PDF: {e}")
+            self.master.gui.handle_error("File Handling Error", f"Unable to open file: {pdf_path}")
             return None
 
-    @staticmethod
-    def extract_text_from_pdf(pdf_path):
-        try:
-            set_tesseract_path()  # Call the function from config.py
-        except FileNotFoundError as e:
-            messagebox.showerror("Tesseract Error", str(e))
-            return None, None
-
-        extracted_text = ""
-        csv_path = pdf_path.replace(".pdf", ".csv")  # Define CSV file path
-
-
-        image_path = OCRProcessor.convert_pdf_to_tiff(pdf_path)  # Get path to TIFF converted image
-        if image_path is not None:
-            with Image.open(image_path) as img:
-                for page_num, frame in enumerate(ImageSequence.Iterator(img)):
-                    try:
-                        text = pytesseract.image_to_string(frame, lang='eng')
-
-                        extracted_text += text + "\n"
-                    except Exception as e:
-                        extracted_text += f"\nError processing page {page_num + 1}: {e}\n"
-
-                os.remove(image_path)  # Delete file once done with it
-
-        # Save extracted text to CSV
-        return extracted_text, OCRProcessor.save_csv(extracted_text, csv_path)
-
-    @staticmethod
-    def save_csv(extracted_text, csv_path):
-        """Save extracted text to a CSV file."""
+    def save_csv(self, csv_path, extracted_text):
         try:
             with open(csv_path, mode='w', newline='', encoding='utf-8') as file:
                 writer = csv.writer(file)
@@ -74,5 +66,5 @@ class OCRProcessor:
                     writer.writerow([page_num + 1, text])
             return csv_path
         except Exception as e:
-            messagebox.showerror("Error", f"Failed to save CSV file: {str(e)}")
+            self.master.gui.handle_error("File Save Error", f"Failed to save CSV file: {str(e)}")
             return None
