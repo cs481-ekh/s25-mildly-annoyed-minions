@@ -41,10 +41,14 @@ jobs:
         run: chmod +x build.sh
 
       - name: Run build script
-        run: ./build.sh
+        run: |
+            source .env/bin/activate
+            ./build.sh
 
       - name: Make test script executable
         run: chmod +x test.sh
 
       - name: Run test script
-        run: ./test.sh
+        run: |
+            source .env/bin/activate
+            ./test.sh
