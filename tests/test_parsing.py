@@ -1,9 +1,11 @@
 import os
-
 import pytest
-
+from unittest.mock import MagicMock
 from src.ocr import OCRProcessor
 
+# Mock the master object (assuming it has a 'gui' attribute with a 'handle_error' method)
+mock_master = MagicMock()
+mock_master.gui.handle_error = MagicMock()
 
 @pytest.mark.parametrize("pdf_path", [
     "../resources/test-entries/pdfs/1975-a1_1-2.pdf",
@@ -28,9 +30,22 @@ from src.ocr import OCRProcessor
 ])
 @pytest.mark.slow
 def test_parsing(pdf_path):
-    csv_path, extracted_text = OCRProcessor.extract_text_from_pdf(pdf_path)
-    OCRProcessor.save_csv(csv_path, extracted_text)
-    os.remove(csv_path)
+    # Instantiate OCRProcessor with the mock master
+    ocr_processor = OCRProcessor(mock_master)
 
+    # Call the extract_text_from_pdf method
+    csv_path, extracted_text = ocr_processor.extract_text_from_pdf(pdf_path)
+
+    # Ensure the extracted text is not None and not empty
     assert extracted_text is not None, "Returned text is None"
     assert extracted_text.strip(), "Returned text is empty after trimming"
+
+    # Save the extracted text to a CSV file
+    saved_csv_path = ocr_processor.save_csv(csv_path, extracted_text)
+
+    # Ensure the CSV file was saved successfully
+    assert saved_csv_path is not None, "Failed to save CSV file"
+
+    # Clean up: Remove the CSV file after the test
+    if os.path.exists(saved_csv_path):
+        os.remove(saved_csv_path)
