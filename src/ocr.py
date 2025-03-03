@@ -1,16 +1,39 @@
 import os
 import csv
 from tkinter import messagebox
-import fitz
 import pytesseract
 from config import set_tesseract_path
-from PIL import Image
-import io
+from pdf2image import convert_from_path
+from PIL import Image, ImageSequence
 
 
 class OCRProcessor:
     def __init__(self, master):
         self.master = master
+
+
+    @staticmethod
+    def convert_pdf_to_tiff(pdf_path):
+        """Converts the input PDF to a TIFF image."""
+        try:
+            images = convert_from_path(
+                pdf_path,
+                grayscale=True,
+                fmt='tiff',
+            )
+
+            tiff_path = pdf_path.replace(".pdf", ".tif")  # Define TIFF file path
+
+            if len(images) != 0:
+                images[0].save(tiff_path, save_all=True, append_images=images[1:])
+
+                return tiff_path
+            else:
+                messagebox.showerror("Error", "Error converting PDF to TIFF")
+                return None
+        except Exception as e:
+            messagebox.showerror("Error", f"Error opening PDF: {e}")
+            return None
 
     @staticmethod
     def extract_text_from_pdf(pdf_path):
@@ -23,41 +46,22 @@ class OCRProcessor:
         extracted_text = ""
         csv_path = pdf_path.replace(".pdf", ".csv")  # Define CSV file path
 
-        try:
-            pdf_document = fitz.open(pdf_path)
-        except Exception as e:
-            messagebox.showerror("Error", f"Error opening PDF: {e}")
-            return None, None
 
-        for page_num in range(len(pdf_document)):
-            try:
-                page = pdf_document.load_page(page_num)
-                text = page.get_text("text")
+        image_path = OCRProcessor.convert_pdf_to_tiff(pdf_path)  # Get path to TIFF converted image
+        if image_path is not None:
+            with Image.open(image_path) as img:
+                for page_num, frame in enumerate(ImageSequence.Iterator(img)):
+                    try:
+                        text = pytesseract.image_to_string(frame, lang='eng')
 
-                # If no extractable text, perform OCR
-                if not text.strip():
-                    pix = page.get_pixmap()
-                    img = Image.open(io.BytesIO(pix.tobytes()))
-                    img = img.convert("L")  # Convert to grayscale for better OCR
-                    text = pytesseract.image_to_string(img)
+                        extracted_text += text + "\n"
+                    except Exception as e:
+                        extracted_text += f"\nError processing page {page_num + 1}: {e}\n"
 
-                extracted_text += text + "\n"
-            except Exception as e:
-                extracted_text += f"\nError processing page {page_num}: {e}\n"
+                os.remove(image_path)  # Delete file once done with it
 
         # Save extracted text to CSV
-        if extracted_text:
-            try:
-                with open(csv_path, mode='w', newline='', encoding='utf-8') as file:
-                    writer = csv.writer(file)
-                    writer.writerow(['Page Number', 'Extracted Text'])
-                    for page_num, text in enumerate(extracted_text.split('\n\n')):
-                        writer.writerow([page_num + 1, text])
-            except Exception as e:
-                messagebox.showerror("Error", f"Failed to save CSV file: {str(e)}")
-                return extracted_text, None
-
-        return extracted_text, csv_path
+        return extracted_text, OCRProcessor.save_csv(extracted_text, csv_path)
 
     @staticmethod
     def save_csv(extracted_text, csv_path):
