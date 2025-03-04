@@ -1,6 +1,8 @@
 import os
-import pytest
 from unittest.mock import MagicMock
+
+import pytest
+
 from src.ocr import OCRProcessor
 
 # Mock the master object (assuming it has a 'gui' attribute with a 'handle_error' method)
