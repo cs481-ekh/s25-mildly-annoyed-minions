@@ -20,7 +20,10 @@ class OCRProcessor:
             return None, None
 
         extracted_text = ""
-        csv_path = pdf_path.replace(".pdf", ".csv")  # Define CSV file path
+        # Use the PDF filename but save to Downloads
+        filename = os.path.basename(pdf_path).replace(".pdf", ".csv")
+        downloads_folder = self.get_downloads_folder()
+        csv_path = os.path.join(downloads_folder, filename)
 
         image_path = self.convert_pdf_to_tiff(pdf_path)  # Get path to TIFF converted image
         if image_path is not None:
@@ -47,11 +50,50 @@ class OCRProcessor:
                                 time.sleep(delay)
                                 delay *= 1.1
                             else:
-
                                 self.master.gui.handle_error("File Deletion Error",
                                                              f"Failed to delete file: {image_path}")
 
         return csv_path, extracted_text
+
+    def get_downloads_folder(self):
+        """Get the path to the user's Downloads folder"""
+        import platform
+        import os
+
+        # Get the Downloads directory based on the operating system
+        if platform.system() == "Windows":
+            import winreg
+            sub_key = r'SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\Shell Folders'
+            downloads_guid = '{374DE290-123F-4565-9164-39C4925E467B}'
+
+            try:
+                with winreg.OpenKey(winreg.HKEY_CURRENT_USER, sub_key) as key:
+                    downloads_folder = winreg.QueryValueEx(key, downloads_guid)[0]
+                    return downloads_folder
+            except Exception:
+                # Default location if registry lookup fails
+                return os.path.join(os.path.expanduser("~"), "Downloads")
+
+        elif platform.system() == "Darwin":  # macOS
+            return os.path.join(os.path.expanduser("~"), "Downloads")
+
+        else:  # Linux and other systems
+            try:
+                # Try to use the XDG user directories
+                import subprocess
+                xdg_path = subprocess.check_output(['xdg-user-dir', 'DOWNLOAD']).decode().strip()
+                if os.path.exists(xdg_path):
+                    return xdg_path
+            except Exception:
+                pass
+
+            # Fallback to ~/Downloads
+            downloads = os.path.join(os.path.expanduser("~"), "Downloads")
+            if os.path.exists(downloads):
+                return downloads
+
+            # Last resort: use home directory
+            return os.path.expanduser("~")
 
     def convert_pdf_to_tiff(self, pdf_path):
         try:
@@ -61,7 +103,11 @@ class OCRProcessor:
                 fmt='tiff',
             )
 
-            tiff_path = pdf_path.replace(".pdf", ".tif")  # Define TIFF file path
+            # Save TIFF to temp directory to avoid permission issues
+            import tempfile
+            temp_dir = tempfile.gettempdir()
+            tiff_name = os.path.basename(pdf_path).replace(".pdf", ".tif")
+            tiff_path = os.path.join(temp_dir, tiff_name)
 
             if len(images) != 0:
                 images[0].save(tiff_path, save_all=True, append_images=images[1:])
@@ -76,12 +122,50 @@ class OCRProcessor:
 
     def save_csv(self, csv_path, extracted_text):
         try:
-            with open(csv_path, mode='w', newline='', encoding='utf-8') as file:
+            # Ensure we're saving to the Downloads folder
+            downloads_folder = self.get_downloads_folder()
+            filename = os.path.basename(csv_path)
+            final_csv_path = os.path.join(downloads_folder, filename)
+
+            # Get the year from the filename if possible (format like "1975-a1_1-2")
+            year = ''
+            if '-' in filename:
+                year_part = filename.split('-')[0]
+                if year_part.isdigit() and len(year_part) == 4:
+                    year = year_part
+
+            with open(final_csv_path, mode='w', newline='', encoding='utf-8') as file:
                 writer = csv.writer(file)
-                writer.writerow(['Page Number', 'Extracted Text'])
-                for page_num, text in enumerate(extracted_text.split('\n\n')):
-                    writer.writerow([page_num + 1, text])
-            return csv_path
+
+                # Write the header with all columns from the example CSV
+                writer.writerow([
+                    'year', 'code', 'title', 'street', 'city', 'state', 'zip', 'phone',
+                    'tag', 'staff', 'doctorates', 'numTechsAndAuxs', 'fields', 'note'
+                ])
+
+                # Create a row with the year from the filename and extracted text in the notes field
+                writer.writerow([
+                    year,  # year from filename or empty
+                    '',  # code
+                    '',  # title
+                    '',  # street
+                    '',  # city
+                    '',  # state
+                    '',  # zip
+                    '',  # phone
+                    '',  # tag
+                    '',  # staff
+                    '',  # doctorates
+                    '',  # numTechsAndAuxs
+                    '',  # fields
+                    extracted_text  # note - full text for you to parse later
+                ])
+
+            # Notify the user where the file was saved
+            self.master.gui.show_info("File Saved", f"CSV file saved to:\n{final_csv_path}")
+
+            return final_csv_path
         except Exception as e:
-            self.master.gui.handle_error("File Save Error", f"Failed to save CSV file: {str(e)}")
+            error_message = f"Failed to save CSV file: {str(e)}"
+            self.master.gui.handle_error("File Save Error", error_message)
             return None
