@@ -406,5 +406,15 @@ class GUI():
         else:
             self.handle_error("Processing Error", "Parsing failed. No PDF files were selected.")
 
+    def show_info(self, title, message):
+        """
+        Display an information message to the user.
+
+        Parameters:
+        title (str): The title of the message box
+        message (str): The message to display
+        """
+        messagebox.showinfo(title, message, parent=self.root)
+
     def handle_results(self):
         pass
