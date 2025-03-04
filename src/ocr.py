@@ -1,5 +1,6 @@
 import os
 import csv
+import time
 from tkinter import messagebox
 import pytesseract
 from src.config import set_tesseract_path
@@ -23,16 +24,32 @@ class OCRProcessor:
 
         image_path = self.convert_pdf_to_tiff(pdf_path)  # Get path to TIFF converted image
         if image_path is not None:
-            with Image.open(image_path) as img:
-                for page_num, frame in enumerate(ImageSequence.Iterator(img)):
-                    try:
-                        text = pytesseract.image_to_string(frame, lang='eng')
+            try:
+                # Open the image and process it
+                with Image.open(image_path) as img:
+                    for page_num, frame in enumerate(ImageSequence.Iterator(img)):
+                        try:
+                            text = pytesseract.image_to_string(frame, lang='eng')
+                            extracted_text += text + "\n"
+                        except Exception as e:
+                            extracted_text += f"\nError processing page {page_num + 1}: {e}\n"
+            finally:
+                # Ensure the file is closed and released
+                if os.path.exists(image_path):
+                    retries = 0
+                    delay = 0.00001
+                    for i in range(retries):
+                        try:
+                            os.remove(image_path)
+                            break
+                        except PermissionError:
+                            if i < retries - 1:
+                                time.sleep(delay)
+                                delay *= 1.1
+                            else:
 
-                        extracted_text += text + "\n"
-                    except Exception as e:
-                        extracted_text += f"\nError processing page {page_num + 1}: {e}\n"
-
-                os.remove(image_path)  # Delete file once done with it
+                                self.master.gui.handle_error("File Deletion Error",
+                                                             f"Failed to delete file: {image_path}")
 
         return csv_path, extracted_text
 
