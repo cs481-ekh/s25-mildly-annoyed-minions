@@ -2,6 +2,7 @@ import os
 from unittest.mock import MagicMock
 
 import pytest
+import pandas as pd
 
 from src.ocr import OCRProcessor
 
@@ -39,15 +40,31 @@ def test_parsing(pdf_path):
     csv_path, extracted_text = ocr_processor.extract_text_from_pdf(pdf_path)
 
     # Ensure the extracted text is not None and not empty
-    assert extracted_text is not None, "Returned text is None"
-    assert extracted_text.strip(), "Returned text is empty after trimming"
+    assert extracted_text is not None, "Extracted text is None"
+    assert extracted_text.strip(), "Extracted text is empty after trimming"
 
-    # Save the extracted text to a CSV file
-    saved_csv_path = ocr_processor.save_csv(csv_path, extracted_text)
+    # Call the clean method
+    cleaned_text = ocr_processor.clean_text(extracted_text)
+
+    # Ensure the cleaned text is not None and not empty
+    assert cleaned_text is not None, "Cleaned text is None"
+    assert cleaned_text.strip(), "Cleaned text is empty after trimming"
+
+    # Save the cleaned text to a CSV file
+    saved_csv_path = ocr_processor.save_csv(csv_path, cleaned_text)
 
     # Ensure the CSV file was saved successfully
     assert saved_csv_path is not None, "Failed to save CSV file"
 
-    # Clean up: Remove the CSV file after the test
+    # Check that the output CSV and the expected CSV are equivalent
+    expected_csv_path = pdf_path.replace("pdfs", "csvs").replace(".pdf", ".csv")
+    expected = pd.read_csv(expected_csv_path)
+    actual = pd.read_csv(saved_csv_path)
+
+    # Clean up
     if os.path.exists(saved_csv_path):
         os.remove(saved_csv_path)
+
+    assert expected.equals(actual), "Cleaned text is not the same as the expected text"
+    del expected
+    del actual
