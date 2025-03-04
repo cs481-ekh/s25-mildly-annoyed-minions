@@ -30,8 +30,9 @@ class GUI():
     def __init__(self, master):
         self.master = master
         self.root = TkinterDnD.Tk()
-        self.root.title("R&D Labs Directory Parser")
+        self.root.minsize(405, 405)
         self.root.geometry("600x500")
+        self.root.title("R&D Labs Directory Parser")
         self.state = AppState.FILE_SELECTION
         self.master.current_state = AppState.FILE_SELECTION
         self.added_files = []
@@ -41,8 +42,8 @@ class GUI():
         self.drag_drop_label = None
         self.create_main_frame()
         self.generate_frame()
-        global file_icon
-        file_icon = PhotoImage(data=file_pic_base_64)
+        self.bind_window_resize()
+        self.file_icon = PhotoImage(data=file_pic_base_64)
 
     def create_main_frame(self):
         self.main_frame = Frame(self.root)
@@ -77,26 +78,32 @@ class GUI():
         frame.pack(expand=True, fill="both")
         frame.grid_rowconfigure(1, weight=1)
         frame.grid_columnconfigure(0, weight=1)
+
         top_frame = Frame(frame, height=30)
         top_frame.grid(row=0, column=0, padx=5, pady=5, sticky="ew")
         top_frame.grid_columnconfigure(0, weight=1)
         top_frame.pack_propagate(False)
+
         self.remove_button_container = Frame(top_frame)
         self.remove_button_container.pack(side="right", padx=5)
         self.remove_button = Button(self.remove_button_container, text="X", command=self.remove_selected_files,
                                     fg="white", bg="red", width=3, padx=4, pady=2)
+
         main_frame = Frame(frame)
         main_frame.grid(row=1, column=0, padx=5, pady=5, sticky="news")
         main_frame.grid_rowconfigure(0, weight=1)
         main_frame.grid_columnconfigure(0, weight=1)
+
         canvas_bg = "#f7f7f7" if not self.added_files else "white"
         self.canvas = Canvas(main_frame, bg=canvas_bg, relief="sunken", bd=1)
         self.canvas.grid(row=0, column=0, padx=5, pady=5, sticky="news")
         self.scrollbar = Scrollbar(main_frame, orient="vertical", command=self.canvas.yview)
         self.scrollbar.grid(row=0, column=1, sticky="ns")
         self.canvas.configure(yscrollcommand=self.scrollbar.set)
+
         self.inner_frame = Frame(self.canvas, bg="lightgray")
         self.inner_window = self.canvas.create_window((0, 0), window=self.inner_frame, anchor="nw")
+
         self.canvas.drop_target_register(DND_FILES)
         self.canvas.dnd_bind("<<Drop>>", self.drop_file)
         self.canvas.filenames = {}
@@ -104,18 +111,28 @@ class GUI():
         self.canvas.file_bg_ids = {}
         self.canvas.nextcoords = [60, 20]
         self.canvas.bind("<Button-1>", self.handle_canvas_click)
+        self.bind_mousewheel_to_canvas()
+
         if not self.added_files:
             self.drag_drop_label = Label(self.canvas, text="Drag & Drop PDF Files Here",
                                          font=("Arial", 10), fg="#555555", bg=canvas_bg)
             self.drag_drop_label.pack(expand=True, fill="both")
-        bottom_frame = Frame(frame)
-        bottom_frame.grid(row=2, column=0, columnspan=2, pady=10, sticky="ew")
-        self.status_label = Label(bottom_frame, text="", fg="black", anchor="w", width=50)
-        self.status_label.pack(side="left", padx=10)
-        self.select_button = Button(bottom_frame, text="Select Files", command=self.add_files)
-        self.select_button.pack(side="right", padx=10)
-        self.process_button = Button(bottom_frame, text="Parse Files", command=self.process_files)
+
+        bottom_frame = Frame(frame, height=40)
+        bottom_frame.grid(row=2, column=0, padx=5, pady=10, sticky="ew")
+        bottom_frame.grid_columnconfigure(0, weight=1)
+        bottom_frame.grid_propagate(False)
+
+        self.status_label = Label(bottom_frame, text="", fg="black", anchor="w")
+        self.status_label.grid(row=0, column=0, padx=10, pady=5, sticky="w")
+
+        button_frame = Frame(bottom_frame)
+        button_frame.grid(row=0, column=1, padx=10, pady=5, sticky="e")
+
+        self.process_button = Button(button_frame, text="Parse Files", command=self.process_files)
         self.process_button.pack(side="right", padx=10)
+        self.select_button = Button(button_frame, text="Select Files", command=self.add_files)
+        self.select_button.pack(side="right", padx=10)
 
     def create_processing_frame(self):
         pass
@@ -123,20 +140,26 @@ class GUI():
     def create_results_frame(self):
         frame = Frame(self.main_frame)
         frame.pack(expand=True, fill="both")
+
         main_frame = Frame(frame)
         main_frame.grid(row=1, column=0, padx=5, pady=5, sticky="news")
         main_frame.grid_rowconfigure(0, weight=1)
         main_frame.grid_columnconfigure(0, weight=1)
+
         frame.grid_columnconfigure(0, weight=1)
         frame.grid_rowconfigure(0, weight=1)
+
         self.inner_frame = Frame(frame)
         self.inner_frame.grid(row=0, column=0, padx=10, pady=10, sticky="news")
+
         label = Label(self.inner_frame, text="OCR Results", font=("Arial", 14, "bold"))
         label.pack(pady=10)
+
         text_area = scrolledtext.ScrolledText(self.inner_frame, wrap=WORD, height=15)
         text_area.pack(expand=True, fill="both", padx=10, pady=5)
         text_area.insert(END, self.master.parsed_files[0][1])  # REPLACE WITH ACTUAL RESULTS DISPLAY AND HANDLING
         text_area.config(state=DISABLED)
+
         download_button = Button(self.inner_frame, text="Save Parsed Files", command=self.master.save_parsed_files)
         download_button.pack(pady=10)
 
@@ -161,8 +184,11 @@ class GUI():
             if self.is_pdf(file) and file not in self.added_files:
                 if not self.added_files:
                     self.remove_drag_drop_label()
-                self.add_file_to_canvas(file)
+                self.added_files.append(file)
                 valid_count += 1
+
+        if valid_count > 0:
+            self.arrange_files()
 
         self.update_file_status(valid=valid_count, duplicate=duplicate_count, invalid=invalid_count)
 
@@ -174,57 +200,147 @@ class GUI():
         valid_count, duplicate_count = 0, 0
         for file in filenames:
             if file not in self.added_files:
-                if not self.added_files:
+                if not self.added_files and len(self.added_files) == 0:
                     self.remove_drag_drop_label()
-                self.add_file_to_canvas(file)
+                self.added_files.append(file)
                 valid_count += 1
-
             else:
                 self.log_message(f"Skipping previously added file: {file}", "info")
                 duplicate_count += 1
+        if valid_count > 0:
+            self.arrange_files()
 
         self.update_file_status(valid_count, duplicate_count)
 
-    def add_file_to_canvas(self, file_path):
-        bg_rect = self.canvas.create_rectangle(
-            self.canvas.nextcoords[0] - 40,
-            self.canvas.nextcoords[1] - 10,
-            self.canvas.nextcoords[0] + 40,
-            self.canvas.nextcoords[1] + 90,
-            fill="", outline="", tags=('file_bg',)
-        )
+    def remove_selected_files(self):
+        if not self.selected_files:
+            return
 
-        icon_id = self.canvas.create_image(
-            self.canvas.nextcoords[0],
-            self.canvas.nextcoords[1],
-            image=file_icon,
-            anchor='n',
-            tags=('file',)
-        )
+        selected_paths = self.get_selected_files()
+        removed_count = len(selected_paths)
 
-        text_id = self.canvas.create_text(
-            self.canvas.nextcoords[0],
-            self.canvas.nextcoords[1] + 50,
-            text=os.path.basename(file_path),
-            anchor='n',
-            justify='center',
-            width=90
-        )
+        for file_path in selected_paths:
+            if file_path in self.added_files:
+                self.added_files.remove(file_path)
 
-        self.canvas.filenames[icon_id] = file_path
-        self.canvas.filenames[text_id] = file_path
-        self.canvas.filenames[bg_rect] = file_path
+        self.selected_files = []
 
-        self.canvas.file_icon_ids[file_path] = icon_id
-        self.canvas.file_bg_ids[file_path] = bg_rect
+        self.update_remove_button_visibility()
 
-        if self.canvas.nextcoords[0] > 450:
-            self.canvas.nextcoords = [60, self.canvas.nextcoords[1] + 130]
-        else:
-            self.canvas.nextcoords = [self.canvas.nextcoords[0] + 100, self.canvas.nextcoords[1]]
+        self.arrange_files()
 
-        self.added_files.append(file_path)
-        self.log_message(f"Added file: {os.path.basename(file_path)}", "success")
+        self.update_file_status(remove=removed_count)
+
+    def bind_window_resize(self):
+        self.root.bind("<Configure>", self.on_window_resize)
+        self.last_window_width = self.root.winfo_width()
+
+    def on_window_resize(self, event):
+        if event.widget == self.root:
+            current_width = self.root.winfo_width()
+            if abs(current_width - self.last_window_width) > 10:
+                self.last_window_width = current_width
+                if current_width > 100:
+                    self.arrange_files()
+
+    def bind_mousewheel_to_canvas(self):
+        def _on_mousewheel(event):
+            if event.num == 4 or event.delta > 0:
+                self.canvas.yview_scroll(-1, "units")
+            elif event.num == 5 or event.delta < 0:
+                self.canvas.yview_scroll(1, "units")
+
+        self.canvas.bind("<MouseWheel>", _on_mousewheel)
+        self.canvas.bind("<Button-4>", _on_mousewheel)
+        self.canvas.bind("<Button-5>", _on_mousewheel)
+
+    def calculate_grid_layout(self):
+        if not hasattr(self, 'canvas') or not self.canvas.winfo_exists():
+            return 5
+
+        canvas_width = self.canvas.winfo_width()
+        if canvas_width <= 1:
+            canvas_width = self.root.winfo_width() - 40
+
+        icon_width = 100
+        icons_per_row = max(1, int((canvas_width - 40) / icon_width))
+        return icons_per_row
+
+    def arrange_files(self):
+        self.canvas.delete("all")
+
+        self.canvas.filenames = {}
+        self.canvas.file_icon_ids = {}
+        self.canvas.file_bg_ids = {}
+
+        if not self.added_files:
+            self.canvas.config(bg="#f7f7f7")
+            if hasattr(self, 'drag_drop_label') and self.drag_drop_label:
+                self.drag_drop_label.destroy()
+            self.drag_drop_label = Label(self.canvas, text="Drag & Drop PDF Files Here",
+                                         font=("Arial", 10), fg="#555555", bg="#f7f7f7")
+            self.drag_drop_label.place(relx=0.5, rely=0.5, anchor=CENTER)
+            return
+
+        self.canvas.config(bg="white")
+        if hasattr(self, 'drag_drop_label') and self.drag_drop_label:
+            self.drag_drop_label.destroy()
+            self.drag_drop_label = None
+
+        icons_per_row = self.calculate_grid_layout()
+
+        margin_x, margin_y = 30, 30
+        icon_width, icon_height = 100, 120
+
+        row, col = 0, 0
+        for file_path in self.added_files:
+            x = margin_x + (col * icon_width) + (icon_width / 2)
+            y = margin_y + (row * icon_height)
+
+            bg_rect = self.canvas.create_rectangle(
+                x - 40, y - 10,
+                x + 40, y + 90,
+                fill="", outline="", tags=('file_bg',)
+            )
+
+            icon_id = self.canvas.create_image(
+                x, y,
+                image=self.file_icon,
+                anchor='n',
+                tags=('file',)
+            )
+
+            text_id = self.canvas.create_text(
+                x, y + 50,
+                text=os.path.basename(file_path),
+                anchor='n',
+                justify='center',
+                width=90
+            )
+
+            self.canvas.filenames[icon_id] = file_path
+            self.canvas.filenames[text_id] = file_path
+            self.canvas.filenames[bg_rect] = file_path
+
+            self.canvas.file_icon_ids[file_path] = icon_id
+            self.canvas.file_bg_ids[file_path] = bg_rect
+
+            if icon_id in self.selected_files or (file_path in self.canvas.file_icon_ids and
+                                                  self.canvas.file_icon_ids[file_path] in self.selected_files):
+                self.canvas.itemconfig(bg_rect, fill="#add8e6", outline="#4682b4")
+                if icon_id not in self.selected_files:
+                    self.selected_files.append(icon_id)
+
+            col += 1
+            if col >= icons_per_row:
+                col = 0
+                row += 1
+
+        total_rows = (len(self.added_files) + icons_per_row - 1) // icons_per_row
+        canvas_height = margin_y + (total_rows * icon_height) + margin_y
+        canvas_width = margin_x + (min(len(self.added_files), icons_per_row) * icon_width)
+
+        self.canvas.config(scrollregion=(0, 0, canvas_width, canvas_height))
 
     def handle_canvas_click(self, event):
         if self.status_label:
@@ -293,50 +409,10 @@ class GUI():
                 selected_paths.append(self.canvas.filenames[icon_id])
         return selected_paths
 
-    def remove_selected_files(self):
-        if not self.selected_files:
-            return
-
-        selected_paths = self.get_selected_files()
-        removed_count = len(selected_paths)
-
-        for file_path in selected_paths:
-            icon_id = self.canvas.file_icon_ids.get(file_path)
-            bg_id = self.canvas.file_bg_ids.get(file_path)
-
-            for item_id in self.canvas.find_all():
-                if self.canvas.filenames.get(item_id) == file_path:
-                    self.canvas.delete(item_id)
-
-            if icon_id in self.canvas.filenames:
-                del self.canvas.filenames[icon_id]
-            if bg_id in self.canvas.filenames:
-                del self.canvas.filenames[bg_id]
-
-            if file_path in self.canvas.file_icon_ids:
-                del self.canvas.file_icon_ids[file_path]
-            if file_path in self.canvas.file_bg_ids:
-                del self.canvas.file_bg_ids[file_path]
-
-            if file_path in self.added_files:
-                self.added_files.remove(file_path)
-
-        self.selected_files = []
-
-        self.update_remove_button_visibility()
-
-        if not self.added_files:
-            self.canvas.nextcoords = [60, 20]
-            self.drag_drop_label = Label(self.canvas, text="Drag & Drop PDF Files Here",
-                                        font=("Arial", 10), fg="#555555", bg="#f7f7f7")
-            self.drag_drop_label.pack(expand=True, fill="both")
-        self.update_file_status(remove=removed_count)
-
     def is_pdf(self, file_path):
         return file_path.lower().endswith('.pdf')
 
     def update_file_status(self, valid=0, duplicate=0, invalid=0, remove=0):
-
         status_parts = []
         status_type = "info"
 
