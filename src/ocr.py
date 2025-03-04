@@ -1,11 +1,12 @@
-import os
 import csv
+import os
 import time
-from tkinter import messagebox
+
 import pytesseract
-from src.config import set_tesseract_path
-from pdf2image import convert_from_path
 from PIL import Image, ImageSequence
+from pdf2image import convert_from_path
+
+from src.config import set_tesseract_path
 
 
 class OCRProcessor:
@@ -119,6 +120,20 @@ class OCRProcessor:
         except Exception as e:
             self.master.gui.handle_error("File Handling Error", f"Unable to open file: {pdf_path}")
             return None
+
+
+    def clean_text(self, extracted_text):
+        """Cleans text into the expected format.
+
+        Returns the cleaned text in CSV-ready format (DataFrame, list of rows, etc.)"""
+        # TODO: Will be implemented in a Sprint after Sprint 2.
+        try:
+            return extracted_text
+        except Exception as e:
+            error_message = f"Failed to save CSV file: {str(e)}"
+            self.master.gui.handle_error("Cleaning Error", error_message)
+            return extracted_text
+
 
     def save_csv(self, csv_path, extracted_text):
         try:
