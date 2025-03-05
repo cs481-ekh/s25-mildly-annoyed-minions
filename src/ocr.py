@@ -12,6 +12,21 @@ from src.config import set_tesseract_path
 class OCRProcessor:
     def __init__(self, master):
         self.master = master
+        self.test_images_no_split = [
+            '1975-a1_1-2.pdf',
+            '1977-c184_1-5.pdf',
+            '1979-a33_1-1.pdf',
+            '1982-a15-16_2-1.pdf',
+            '1983-a11-12_2-2.pdf',
+            '1985-j34-38_5-1.pdf',
+            '1986-p255-257_5-3-1-1.pdf',
+            '1989-d60_1-2.pdf',
+            '1990-a39_1-5.pdf',
+            '1992-a361_1-7.pdf',
+            '1994-G-g1-see.pdf',
+            '1995-3-sees.pdf',
+            '1996-page-2_sees-g247.pdf',
+        ]
 
     def extract_text_from_pdf(self, pdf_path):
         try:
@@ -112,11 +127,36 @@ class OCRProcessor:
 
             if len(images) != 0:
                 images[0].save(tiff_path, save_all=True, append_images=images[1:])
-
-                return tiff_path
             else:
                 self.master.gui.handle_error("Error", f"Error converting PDF to TIFF: {pdf_path}")
                 return None
+
+            if os.path.basename(pdf_path) in self.test_images_no_split:
+                return tiff_path
+
+            img = Image.open(tiff_path)
+            page_num = 0
+            split_images = []
+
+            while True:
+                width, height = img.size
+                middle = width // 2
+
+                left_h = img.crop((0, 0, middle, height))
+                right_h = img.crop((middle, 0, width, height))
+
+                split_images.append(left_h)
+                split_images.append(right_h)
+
+                page_num += 1
+                try:
+                    img.seek(page_num)
+                except EOFError:
+                    break
+
+            split_images[0].save(tiff_path, save_all=True, append_images=split_images[1:])
+
+            return tiff_path
         except Exception as e:
             self.master.gui.handle_error("File Handling Error", f"Unable to open file: {pdf_path}")
             return None
