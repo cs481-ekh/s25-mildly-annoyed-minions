@@ -38,8 +38,9 @@ class GUI():
         self.added_files = []
         self.selected_files = []
         self.inner_frame = None
-        self.status_label = None
         self.drag_drop_label = None
+        self.status_label = None
+        self.process_button = None
         self.create_main_frame()
         self.generate_frame()
         self.bind_window_resize()
@@ -129,8 +130,10 @@ class GUI():
         button_frame = Frame(bottom_frame)
         button_frame.grid(row=0, column=1, padx=10, pady=5, sticky="e")
 
-        self.process_button = Button(button_frame, text="Parse Files", command=self.process_files)
+        self.process_button = Button(button_frame, text="Parse All Files", command=self.process_files)
         self.process_button.pack(side="right", padx=10)
+        self.update_process_button_text()
+
         self.select_button = Button(button_frame, text="Select Files", command=self.add_files)
         self.select_button.pack(side="right", padx=10)
 
@@ -224,6 +227,8 @@ class GUI():
                 self.added_files.remove(file_path)
 
         self.selected_files = []
+
+        self.update_process_button_text()
 
         self.update_remove_button_visibility()
 
@@ -366,6 +371,8 @@ class GUI():
         else:
             self.deselect_all_files()
 
+        self.update_process_button_text()
+
         self.update_remove_button_visibility()
 
     def remove_drag_drop_label(self):
@@ -373,6 +380,18 @@ class GUI():
             self.drag_drop_label.destroy()
             self.drag_drop_label = None
             self.canvas.config(bg="white")
+
+    def update_process_button_text(self):
+        if not hasattr(self, 'process_button'):
+            return
+
+        if not self.added_files:
+            self.process_button.config(text="Parse All Files")
+        elif self.selected_files:
+            file_count = len(self.selected_files)
+            self.process_button.config(text=f"Parse {file_count} File{'s' if file_count > 1 else ''}")
+        else:
+            self.process_button.config(text="Parse All Files")
 
     def update_remove_button_visibility(self):
         if self.selected_files:
@@ -399,6 +418,8 @@ class GUI():
 
         self.log_message(f"Deselected {len(self.selected_files)} files")
         self.selected_files = []
+
+        self.update_process_button_text()
 
         self.update_remove_button_visibility()
 
@@ -477,8 +498,10 @@ class GUI():
         if self.status_label:
             self.status_label.config(text="")
 
-        if self.added_files:
-            self.master.process_files(self.added_files)
+        files_to_process = self.get_selected_files() if self.selected_files else self.added_files
+
+        if files_to_process:
+            self.master.process_files(files_to_process)
         else:
             self.handle_error("Processing Error", "Parsing failed. No PDF files were selected.")
 
