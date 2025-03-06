@@ -16,9 +16,13 @@ Assuming machine is running Ubuntu and Python 3.12 is already installed on your 
 
 ```bash
 sudo apt update -y; sudo apt install -y build-essential libssl-dev zlib1g-dev \
-libbz2-dev libreadline-dev libsqlite3-dev curl git \
-libncursesw5-dev xz-utils tk-dev python3.12-tk libxml2-dev libxmlsec1-dev libffi-dev liblzma-dev \
-tesseract-ocr libtesseract-dev poppler-utils
+          libbz2-dev libreadline-dev libsqlite3-dev curl git \
+          libncursesw5-dev xz-utils tk-dev python3.12-tk libxml2-dev libxmlsec1-dev libffi-dev liblzma-dev \
+          tesseract-ocr libtesseract-dev poppler-utils tesseract-ocr-eng libtiff6
+
+wget https://github.com/tesseract-ocr/tessdata/raw/refs/heads/main/eng.traineddata
+
+sudo mv eng.traineddata /usr/share/tesseract-ocr/5/tessdata/eng.traineddata
 
 python -m venv .env
 
