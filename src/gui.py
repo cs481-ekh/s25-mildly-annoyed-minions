@@ -9,7 +9,7 @@ except ImportError:
 from tkinterdnd2 import TkinterDnD, DND_FILES
 from src.states import AppState
 
-file_pic_base_64 = ('iVBORw0KGgoAAAANSUhEUgAAADAAAAAwCAMAAABg3Am1AAAAk1BMVEVHcEzJz9j/Vi/'
+FILE_PIC_BASE_64 = ('iVBORw0KGgoAAAANSUhEUgAAADAAAAAwCAMAAABg3Am1AAAAk1BMVEVHcEzJz9j/Vi/'
                     'jMQbo6+7FytL/VS/ovrbq6+/e4Obs9fvhZUfbLwnYy835UizR1N3/VjDM0tn9XzzHzdb'
                     '/79Dr7PD/VjDu7/PCyND8clO/xc7/WTP/UCjs7vL/SiL/RBrFy9T29/v//v7/8/D/ppP'
                     '/va709Pn/moP/3NX/ZEH/Uyz/xLf/0Mb/6eT/hGj/eFpHcEwgl6rUAAAAMXRSTlMA9NT7'
@@ -27,7 +27,16 @@ file_pic_base_64 = ('iVBORw0KGgoAAAANSUhEUgAAADAAAAAwCAMAAABg3Am1AAAAk1BMVEVHcEz
 
 
 class GUI():
+    """Class to represent the GUI."""
+
     def __init__(self, master):
+        self.last_window_width = None
+        self.select_button = None
+        self.inner_window = None
+        self.scrollbar = None
+        self.remove_button = None
+        self.canvas = None
+        self.remove_button_container = None
         self.master = master
         self.root = TkinterDnD.Tk()
         self.root.minsize(405, 405)
@@ -41,10 +50,11 @@ class GUI():
         self.drag_drop_label = None
         self.status_label = None
         self.process_button = None
+        self.main_frame = None
         self.create_main_frame()
         self.generate_frame()
         self.bind_window_resize()
-        self.file_icon = PhotoImage(data=file_pic_base_64)
+        self.file_icon = PhotoImage(data=FILE_PIC_BASE_64)
 
     def create_main_frame(self):
         self.main_frame = Frame(self.root)
@@ -66,7 +76,6 @@ class GUI():
             self.create_error_frame()
         else:
             self.log_message(f"ERROR: No frame found for state: {self.state}", "error")
-            return
 
     def set_state(self, new_state):
         old_state = self.state
@@ -87,8 +96,16 @@ class GUI():
 
         self.remove_button_container = Frame(top_frame)
         self.remove_button_container.pack(side="right", padx=5)
-        self.remove_button = Button(self.remove_button_container, text="X", command=self.remove_selected_files,
-                                    fg="white", bg="red", width=3, padx=4, pady=2)
+        self.remove_button = Button(
+            self.remove_button_container,
+            text="X",
+            command=self.remove_selected_files,
+            fg="white",
+            bg="red",
+            width=3,
+            padx=4,
+            pady=2
+        )
 
         main_frame = Frame(frame)
         main_frame.grid(row=1, column=0, padx=5, pady=5, sticky="news")
@@ -130,7 +147,11 @@ class GUI():
         button_frame = Frame(bottom_frame)
         button_frame.grid(row=0, column=1, padx=10, pady=5, sticky="e")
 
-        self.process_button = Button(button_frame, text="Parse All Files", command=self.process_files)
+        self.process_button = Button(
+            button_frame,
+            text="Parse All Files",
+            command=self.process_files
+        )
         self.process_button.pack(side="right", padx=10)
         self.update_process_button_text()
 
@@ -160,10 +181,16 @@ class GUI():
 
         text_area = scrolledtext.ScrolledText(self.inner_frame, wrap=WORD, height=15)
         text_area.pack(expand=True, fill="both", padx=10, pady=5)
-        text_area.insert(END, self.master.parsed_files[0][1])  # REPLACE WITH ACTUAL RESULTS DISPLAY AND HANDLING
+
+        # REPLACE WITH ACTUAL RESULTS DISPLAY AND HANDLING
+        text_area.insert(END, self.master.parsed_files[0][1])
         text_area.config(state=DISABLED)
 
-        download_button = Button(self.inner_frame, text="Save Parsed Files", command=self.master.save_parsed_files)
+        download_button = Button(
+            self.inner_frame,
+            text="Save Parsed Files",
+            command=self.master.save_parsed_files
+        )
         download_button.pack(pady=10)
 
     def create_complete_frame(self):
@@ -330,8 +357,10 @@ class GUI():
             self.canvas.file_icon_ids[file_path] = icon_id
             self.canvas.file_bg_ids[file_path] = bg_rect
 
-            if icon_id in self.selected_files or (file_path in self.canvas.file_icon_ids and
-                                                  self.canvas.file_icon_ids[file_path] in self.selected_files):
+            if icon_id in self.selected_files or (
+                    file_path in self.canvas.file_icon_ids and
+                    self.canvas.file_icon_ids[file_path] in self.selected_files
+            ):
                 self.canvas.itemconfig(bg_rect, fill="#add8e6", outline="#4682b4")
                 if icon_id not in self.selected_files:
                     self.selected_files.append(icon_id)
@@ -389,7 +418,9 @@ class GUI():
             self.process_button.config(text="Parse All Files")
         elif self.selected_files:
             file_count = len(self.selected_files)
-            self.process_button.config(text=f"Parse {file_count} File{'s' if file_count > 1 else ''}")
+            self.process_button.config(
+                text=f"Parse {file_count} File{'s' if file_count > 1 else ''}"
+            )
         else:
             self.process_button.config(text="Parse All Files")
 

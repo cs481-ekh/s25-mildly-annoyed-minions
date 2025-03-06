@@ -1,9 +1,13 @@
-# config.py
 import os
 import platform
 import pytesseract
 
+
 def set_tesseract_path():
+    """Sets the tesseract path.
+
+    :return: None if successful, otherwise a FileNotFoundError is raised.
+    """
     system = platform.system()
     if system == "Windows":
         possible_paths = [
@@ -21,5 +25,6 @@ def set_tesseract_path():
             return
 
     raise FileNotFoundError("Tesseract is not installed or not found.")
+
 
 set_tesseract_path()
