@@ -156,7 +156,7 @@ class OCRProcessor:
                 except EOFError:
                     break
 
-            split_images[0].save(tiff_path, save_all=True, append_images=split_images[1:])
+            split_images[0].save(tiff_path, save_all=True, append_images=split_images[1:], compression='tiff_lzw')
 
             return tiff_path
         except Exception as e:
