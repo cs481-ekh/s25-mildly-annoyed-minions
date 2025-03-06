@@ -1,5 +1,6 @@
 import csv
 import os
+import tempfile
 import time
 
 import pytesseract
@@ -12,6 +13,7 @@ from src.config import set_tesseract_path
 class OCRProcessor:
     def __init__(self, master):
         self.master = master
+        self.temp_dir = tempfile.gettempdir()
         self.test_images_no_split = [
             '1975-a1_1-2.pdf',
             '1977-c184_1-5.pdf',
@@ -48,7 +50,7 @@ class OCRProcessor:
                 with Image.open(image_path) as img:
                     for page_num, frame in enumerate(ImageSequence.Iterator(img)):
                         try:
-                            text = pytesseract.image_to_string(frame, lang='eng')
+                            text = pytesseract.image_to_string(frame, lang='eng', config='--psm 6 --oem 2')
                             extracted_text += text + "\n"
                         except Exception as e:
                             extracted_text += f"\nError processing page {page_num + 1}: {e}\n"
@@ -117,21 +119,21 @@ class OCRProcessor:
                 pdf_path,
                 grayscale=True,
                 fmt='tiff',
+                dpi=300,
             )
 
             # Save TIFF to temp directory to avoid permission issues
-            import tempfile
-            temp_dir = tempfile.gettempdir()
             tiff_name = os.path.basename(pdf_path).replace(".pdf", ".tif")
-            tiff_path = os.path.join(temp_dir, tiff_name)
+            tiff_path = os.path.join(self.temp_dir, tiff_name)
 
             if len(images) != 0:
-                images[0].save(tiff_path, save_all=True, append_images=images[1:])
+                images[0].save(tiff_path, save_all=True, append_images=images[1:], compression='tiff_lzw')
             else:
                 self.master.gui.handle_error("Error", f"Error converting PDF to TIFF: {pdf_path}")
                 return None
 
             if os.path.basename(pdf_path) in self.test_images_no_split:
+                print('Skipping test image')
                 return tiff_path
 
             img = Image.open(tiff_path)
@@ -140,7 +142,7 @@ class OCRProcessor:
 
             while True:
                 width, height = img.size
-                middle = width // 2
+                middle = (width // 2) - 40
 
                 left_h = img.crop((0, 0, middle, height))
                 right_h = img.crop((middle, 0, width, height))
