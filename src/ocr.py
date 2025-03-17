@@ -2,6 +2,7 @@ import os
 import csv
 import re
 import pytesseract
+from pathlib import Path
 
 from PIL import Image
 from pdf2image import convert_from_path
@@ -176,35 +177,56 @@ class OCRProcessor:
 
         return data
 
-    def save_csv(self, csv_path, parsed_data):
+    def save_csv(self, pdf_path, parsed_data):
         """
-        Prompt the user for a file name & location and save CSV.
+        Automatically saves the CSV file in the user's Downloads directory
+        with the same name as the input PDF file.
         """
-        from tkinter import filedialog
-
-        chosen_path = filedialog.asksaveasfilename(
-            title="Save CSV As",
-            defaultextension=".csv",
-            filetypes=[("CSV files", "*.csv"), ("All files", "*.*")]
-        )
-        if not chosen_path:
-            self.master.gui.handle_error("Save Error", "No file was selected.")
-            return None
-
         try:
-            with open(chosen_path, mode='w', newline='', encoding='utf-8') as file:
-                fieldnames = [
-                    'year', 'code', 'title', 'street', 'city', 'state', 'zip', 'phone',
-                    'tag', 'staff', 'doctorates', 'numTechsAndAuxs', 'fields', 'note'
-                ]
+            # Get the user's Downloads directory
+            downloads_dir = Path.home() / "Downloads"
+            downloads_dir.mkdir(parents=True, exist_ok=True)  # Ensure the directory exists
+
+            # Extract filename from PDF and change extension to .csv
+            pdf_filename = os.path.basename(pdf_path)
+            csv_filename = os.path.splitext(pdf_filename)[0] + ".csv"
+            csv_path = downloads_dir / csv_filename
+
+            # Define CSV fieldnames
+            fieldnames = [
+                'year', 'code', 'title', 'street', 'city', 'state', 'zip', 'phone',
+                'tag', 'staff', 'doctorates', 'numTechsAndAuxs', 'fields', 'note'
+            ]
+
+            # Write data to CSV
+            with open(csv_path, mode='w', newline='', encoding='utf-8') as file:
                 writer = csv.DictWriter(file, fieldnames=fieldnames)
                 writer.writeheader()
                 writer.writerows(parsed_data)
+                file.flush()  # Ensure data is written to disk
+                os.fsync(file.fileno())
 
-            self.master.gui.show_info("File Saved", f"CSV file saved to:\n{chosen_path}")
-            return chosen_path
+            # Ensure file is actually written and available
+            if csv_path.exists() and csv_path.stat().st_size > 0:
+                self.master.gui.show_info("File Saved", f"CSV file saved to:\n{csv_path}")
+                return csv_path
+            else:
+                raise Exception("CSV file was not successfully created.")
 
         except Exception as e:
-            error_message = f"Failed to save CSV file: {str(e)}"
-            self.master.gui.handle_error("File Save Error", error_message)
-            return None
+            # Attempt to save in an alternative location
+            fallback_path = Path.home() / csv_filename
+            try:
+                with open(fallback_path, mode='w', newline='', encoding='utf-8') as file:
+                    writer = csv.DictWriter(file, fieldnames=fieldnames)
+                    writer.writeheader()
+                    writer.writerows(parsed_data)
+                    file.flush()
+                    os.fsync(file.fileno())
+
+                self.master.gui.show_info("File Saved", f"CSV file saved to:\n{fallback_path}")
+                return fallback_path
+            except Exception as fallback_error:
+                error_message = f"Failed to save CSV file: {str(e)}\nAttempted fallback failed: {str(fallback_error)}"
+                self.master.gui.handle_error("File Save Error", error_message)
+                return None
