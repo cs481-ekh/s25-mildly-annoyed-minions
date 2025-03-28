@@ -12,6 +12,7 @@ from PIL import Image, ImageSequence
 from pdf2image import convert_from_path
 
 from src.config import set_tesseract_path
+from src.core.image_processor import ImageProcessor
 
 if platform.system() == "Windows":
     import winreg
@@ -21,9 +22,6 @@ class OCRProcessor:
     """Class to handle OCR operations."""
 
     def __init__(self, master):
-        self.WHITELIST = """ !\\"#$%&\\'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]`abcdefghijklmnopqrstuvwxyz{|}"""
-        self.BLACKLIST = """~_^"""
-        self.pyt_config = f"--psm 6 -c tessedit_char_whitelist={self.WHITELIST} -c tessedit_char_blacklist={self.BLACKLIST}"
         self.master = master
         self.temp_dir = tempfile.gettempdir()
         self.test_images_no_split = [
@@ -58,7 +56,8 @@ class OCRProcessor:
 
         extracted_text = ""
         # Use the PDF filename but save to Downloads
-        filename = os.path.basename(pdf_path).replace(".pdf", ".csv")
+        basename = os.path.basename(pdf_path)
+        filename = basename.replace(".pdf", ".csv")
         downloads_folder = self.get_downloads_folder()
         csv_path = os.path.join(downloads_folder, filename)
 
@@ -67,16 +66,25 @@ class OCRProcessor:
             try:
                 # Open the image and process it
                 with Image.open(image_path) as img:
-                    for page_num, frame in enumerate(ImageSequence.Iterator(img)):
+                    for i in range(img.n_frames):  # For each page in the image
                         try:
-                            text = pytesseract.image_to_string(
-                                frame,
-                                lang='eng',
-                                config='--psm 6 --oem 2'
+                            # Move to the page
+                            img.seek(i)
+
+                            # Convert to an OpenCV compatible format
+                            img_cv2 = np.array(img.convert("RGB"))
+                            img_cv2 = cv2.cvtColor(img_cv2, cv2.COLOR_RGB2BGR)
+
+                            # Pass to ImageProcessor
+                            img_processor = ImageProcessor(
+                                img_cv2,
+                                split=True if basename in self.test_images_no_split else False
                             )
-                            extracted_text += text + "\n"
+
+                            # Extract text
+                            extracted_text += img_processor.process_image() + "\n"
                         except Exception as e:
-                            extracted_text += f"\nError processing page {page_num + 1}: {e}\n"
+                            extracted_text += f"\nError processing page {i + 1}: {e}\n"
             finally:
                 # Ensure the file is closed and released
                 if os.path.exists(image_path):
@@ -198,48 +206,6 @@ class OCRProcessor:
         except Exception:
             self.master.gui.handle_error("File Handling Error", f"Unable to open file: {pdf_path}")
             return None
-
-    @staticmethod
-    def sharpen_image(image):
-        sharpen_kernel = np.array([
-            [-1, -1, -1],
-            [-1,  9, -1],
-            [-1, -1, -1]
-        ])
-
-        return cv2.filter2D(image, -1, sharpen_kernel)
-
-    @staticmethod
-    def split_page(image):
-        height, width, _ = image.shape
-        middle = (width // 2)
-
-        left_col = image[:-100, 125:middle]
-        right_col = image[:-100, middle:-110]
-
-        return left_col, right_col
-
-    def process_half(self, image):
-        # Grayscale
-        gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-
-        # Binarization
-        ret, thresh = cv2.threshold(gray, 0, 255, cv2.THRESH_OTSU | cv2.THRESH_BINARY_INV)
-
-        # Draw the fake-boxes
-        rect_kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (200, 20))
-        dilation = cv2.dilate(thresh, rect_kernel, iterations=1)
-
-        # Draw the bounding boxes based on the fake ones
-        image2 = image.copy()
-        contours, hierarchy = cv2.findContours(dilation, cv2.RETR_TREE, cv2.CHAIN_APPROX_NONE)
-        cv2.drawContours(image2, contours, -1, (0, 255, 0), 3)
-
-        # Return the boxed image
-        return image2
-
-    def extract_text_from_processed_image(self, image):
-        return pytesseract.image_to_string(image, lang="eng", config=self.pyt_config).replace("|", "1")
 
     def clean_text(self, extracted_text):
         """Cleans text into the expected format.
