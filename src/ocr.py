@@ -5,11 +5,14 @@ import subprocess
 import tempfile
 import time
 
+import cv2
+import numpy as np
 import pytesseract
 from PIL import Image, ImageSequence
 from pdf2image import convert_from_path
 
 from src.config import set_tesseract_path
+from src.core.image_processor import ImageProcessor
 
 if platform.system() == "Windows":
     import winreg
@@ -53,7 +56,8 @@ class OCRProcessor:
 
         extracted_text = ""
         # Use the PDF filename but save to Downloads
-        filename = os.path.basename(pdf_path).replace(".pdf", ".csv")
+        basename = os.path.basename(pdf_path)
+        filename = basename.replace(".pdf", ".csv")
         downloads_folder = self.get_downloads_folder()
         csv_path = os.path.join(downloads_folder, filename)
 
@@ -62,16 +66,25 @@ class OCRProcessor:
             try:
                 # Open the image and process it
                 with Image.open(image_path) as img:
-                    for page_num, frame in enumerate(ImageSequence.Iterator(img)):
+                    for i in range(img.n_frames):  # For each page in the image
                         try:
-                            text = pytesseract.image_to_string(
-                                frame,
-                                lang='eng',
-                                config='--psm 6 --oem 2'
+                            # Move to the page
+                            img.seek(i)
+
+                            # Convert to an OpenCV compatible format
+                            img_cv2 = np.array(img.convert("RGB"))
+                            img_cv2 = cv2.cvtColor(img_cv2, cv2.COLOR_RGB2BGR)
+
+                            # Pass to ImageProcessor
+                            img_processor = ImageProcessor(
+                                img_cv2,
+                                split=True if basename in self.test_images_no_split else False
                             )
-                            extracted_text += text + "\n"
+
+                            # Extract text
+                            extracted_text += img_processor.process_image() + "\n"
                         except Exception as e:
-                            extracted_text += f"\nError processing page {page_num + 1}: {e}\n"
+                            extracted_text += f"\nError processing page {i + 1}: {e}\n"
             finally:
                 # Ensure the file is closed and released
                 if os.path.exists(image_path):
@@ -140,7 +153,7 @@ class OCRProcessor:
                 pdf_path,
                 grayscale=True,
                 fmt='tiff',
-                dpi=300,
+                dpi=500,
             )
 
             # Save TIFF to temp directory to avoid permission issues

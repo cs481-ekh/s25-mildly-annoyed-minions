@@ -10,6 +10,9 @@
 venv
 venv/*
 
+resources/volumes
+resources/volumes/*
+
 build
 build/*
 

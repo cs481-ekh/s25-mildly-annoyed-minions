@@ -65,6 +65,7 @@ nest-asyncio==1.6.0
 notebook==7.3.2
 notebook_shim==0.2.4
 numpy==2.2.3
+opencv-python==4.11.0.86
 overrides==7.7.0
 packaging==24.2
 pandas==2.2.3
@@ -90,8 +91,6 @@ pytest==8.3.4
 python-dateutil==2.9.0.post0
 python-json-logger==3.2.1
 pytz==2025.1
-pywin32==308;sys_platform == 'win32'
-pywinpty==2.0.15;sys_platform == 'win32'
 PyYAML==6.0.2
 pyzmq==26.2.1
 referencing==0.36.2
@@ -123,4 +122,3 @@ webcolors==24.11.1
 webencodings==0.5.1
 websocket-client==1.8.0
 widgetsnbextension==4.0.13
-
