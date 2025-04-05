@@ -65,7 +65,6 @@ class ImageProcessor:
             dilation, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE
         )
 
-        min_width = 1000  # Remove very narrow shapes
         min_height = 60  # Remove very short shapes
 
         boxes = []
@@ -73,7 +72,7 @@ class ImageProcessor:
         max_h = 0
         for cnt in contours:
             x, y, w, h = cv2.boundingRect(cnt)
-            if w > min_width and h > min_height:
+            if h > min_height:
                 region = image[y : y + h, x : x + w].copy()
 
                 shifted_contour = cnt - [x, y]
