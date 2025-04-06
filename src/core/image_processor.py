@@ -1,5 +1,7 @@
+import tempfile
+import os
+
 import cv2
-import numpy as np
 import pytesseract
 
 WHITELIST = """ !\\"#$%&\\'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]`abcdefghijklmnopqrstuvwxyz{|}"""
@@ -14,16 +16,6 @@ class ImageProcessor:
         self.image = image
         self.split = split
 
-    def sharpen_image(self):
-        """
-        Sharpens the image.
-
-        :return: None. Updates the `ImageProcessor.image` attribute itself.
-        """
-        sharpen_kernel = np.array([[-1, -1, -1], [-1, 9, -1], [-1, -1, -1]])
-
-        self.image = cv2.filter2D(self.image, -1, sharpen_kernel)
-
     def split_page(self):
         """
         Splits the image into two halves.
@@ -33,8 +25,8 @@ class ImageProcessor:
         height, width, _ = self.image.shape
         middle = width // 2
 
-        left_col = self.image[:-100, 125:middle]
-        right_col = self.image[:-100, middle:-110]
+        left_col = self.image[:, :middle]
+        right_col = self.image[:, middle:]
 
         return left_col, right_col
 
@@ -50,7 +42,7 @@ class ImageProcessor:
         gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
 
         # Binarization
-        ret, thresh = cv2.threshold(
+        _, thresh = cv2.threshold(
             gray, 128, 255, cv2.THRESH_OTSU | cv2.THRESH_BINARY_INV
         )
 
@@ -58,41 +50,32 @@ class ImageProcessor:
         rect_kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (200, 20))
         dilation = cv2.dilate(thresh, rect_kernel, iterations=1)
 
-        cv2.imwrite("dilation.tiff", dilation)
-
         # Draw the bounding boxes based on the fake ones
-        contours, hierarchy = cv2.findContours(
+        contours, _ = cv2.findContours(
             dilation, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE
         )
 
         min_height = 60  # Remove very short shapes
+        file_paths = []
 
-        boxes = []
-        max_w = 0
-        max_h = 0
-        for cnt in contours:
-            x, y, w, h = cv2.boundingRect(cnt)
-            if h > min_height:
-                region = image[y : y + h, x : x + w].copy()
+        # Pair each contour with its bounding box, filter by height, and sort by y-position descending
+        contour_boxes = [
+            (cnt, cv2.boundingRect(cnt)) for cnt in contours
+            if cv2.boundingRect(cnt)[3] > min_height
+        ]
+        contour_boxes.sort(key=lambda cb: cb[1][1], reverse=False)  # Sort by y
 
-                shifted_contour = cnt - [x, y]
-                cv2.drawContours(region, [shifted_contour], -1, (0, 255, 0), 2)
+        for cnt, (x, y, w, h) in contour_boxes:
+            region = image[y : y + h, x : x + w].copy()
+            shifted_contour = cnt - [x, y]
+            cv2.drawContours(region, [shifted_contour], -1, (0, 255, 0), 2)
 
-                boxes.append(region)
-                max_w = max(max_w, w)
-                max_h = max(max_h, h)
-        total_h = sum([b.shape[0] for b in boxes])
-        total_w = max([b.shape[1] for b in boxes])
-        stacked = np.ones((total_h, total_w, 3), dtype=np.uint8) * 255
+            # Create a temporary file
+            temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=".tiff")
+            cv2.imwrite(temp_file.name, region)
+            file_paths.append(temp_file.name)
 
-        current_y = 0
-        boxes.reverse()
-        for box in boxes:
-            h, w = box.shape[:2]
-            stacked[current_y : current_y + h, 0:w] = box
-            current_y += h
-
-        return stacked
+        return file_paths
 
     def process_image(self):
         """
@@ -100,24 +83,39 @@ class ImageProcessor:
 
         :return: The full text of the page.
         """
-        self.sharpen_image()
         if self.split:
             left_col, right_col = self.split_page()
-            left, right = self.process_half(left_col), self.process_half(right_col)
+            left_paths, right_paths = self.process_half(left_col), self.process_half(right_col)
 
-            left_text = pytesseract.image_to_string(
-                left, lang="eng", config=tess_config
-            ).replace("|", "1")
+            text = ""
 
-            right_text = pytesseract.image_to_string(
-                right, lang="eng", config=tess_config
-            ).replace("|", "1")
+            for tmp_file in left_paths:
+                img = cv2.imread(tmp_file)
+                text += pytesseract.image_to_string(
+                    img, lang="eng", config=tess_config
+                ).replace("|", "1")
+                text += "\n"
+                os.remove(tmp_file)
+            for tmp_file in right_paths:
+                img = cv2.imread(tmp_file)
+                text += pytesseract.image_to_string(
+                    img, lang="eng", config=tess_config
+                ).replace("|", "1")
+                text += "\n"
+                os.remove(tmp_file)
 
-            return left_text + "\n" + right_text
+            return text
         else:
-            processed = self.process_half(self.image)
-            text = pytesseract.image_to_string(
-                processed, lang="eng", config=tess_config
-            ).replace("|", "1")
+            processed_paths = self.process_half(self.image)
+
+            text = ""
+
+            for tmp_file in processed_paths:
+                img = cv2.imread(tmp_file)
+                text += pytesseract.image_to_string(
+                    img, lang="eng", config=tess_config
+                ).replace("|", "1")
+                text += "\n"
+                os.remove(tmp_file)
 
             return text

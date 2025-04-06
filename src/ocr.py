@@ -80,9 +80,9 @@ class OCRProcessor:
                             # Pass to ImageProcessor
                             img_processor = ImageProcessor(
                                 img_cv2,
-                                split=True
+                                split=False
                                 if basename in self.test_images_no_split
-                                else False,
+                                else True,
                             )
 
                             # Extract text
@@ -187,34 +187,6 @@ class OCRProcessor:
 
             if os.path.basename(pdf_path) in self.test_images_no_split:
                 print("Skipping test image")
-                return tiff_path
-
-            img = Image.open(tiff_path)
-            page_num = 0
-            split_images = []
-
-            while True:
-                width, height = img.size
-                middle = (width // 2) - 40
-
-                left_h = img.crop((0, 0, middle, height))
-                right_h = img.crop((middle, 0, width, height))
-
-                split_images.append(left_h)
-                split_images.append(right_h)
-
-                page_num += 1
-                try:
-                    img.seek(page_num)
-                except EOFError:
-                    break
-
-            split_images[0].save(
-                tiff_path,
-                save_all=True,
-                append_images=split_images[1:],
-                compression="tiff_lzw",
-            )
 
             return tiff_path
         except Exception:
