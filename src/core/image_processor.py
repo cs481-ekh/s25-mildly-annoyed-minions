@@ -3,6 +3,10 @@ import os
 
 import cv2
 import pytesseract
+from pdf2image import convert_from_path
+
+from src.utils import logger
+
 
 WHITELIST = """ !\\"#$%&\\'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]`abcdefghijklmnopqrstuvwxyz{|}"""
 BLACKLIST = """~_^"""
@@ -119,3 +123,86 @@ class ImageProcessor:
                 os.remove(tmp_file)
 
             return text
+
+    def process_image(self):
+        """
+        Processes the image.
+
+        :return: The full text of the page.
+        """
+        if self.split:
+            left_col, right_col = self.split_page()
+            left_paths, right_paths = self.process_half(left_col), self.process_half(right_col)
+
+            text = ""
+
+            for tmp_file in left_paths:
+                img = cv2.imread(tmp_file)
+                text += pytesseract.image_to_string(
+                    img, lang="eng", config=tess_config
+                ).replace("|", "1")
+                text += "\n"
+                os.remove(tmp_file)
+            for tmp_file in right_paths:
+                img = cv2.imread(tmp_file)
+                text += pytesseract.image_to_string(
+                    img, lang="eng", config=tess_config
+                ).replace("|", "1")
+                text += "\n"
+                os.remove(tmp_file)
+
+            return text
+        else:
+            processed_paths = self.process_half(self.image)
+
+            text = ""
+
+            for tmp_file in processed_paths:
+                img = cv2.imread(tmp_file)
+                text += pytesseract.image_to_string(
+                    img, lang="eng", config=tess_config
+                ).replace("|", "1")
+                text += "\n"
+                os.remove(tmp_file)
+
+            return text
+
+    @staticmethod
+    def convert_pdf_to_tiff(pdf_path, temp_dir):
+        """Converts the PDF at the input file path to a multipage TIFF image using LZW compression.
+
+        :param pdf_path: The path to a PDF file.
+        :return: The path to a TIFF image on success or None if there was an error.
+        """
+        try:
+            images = convert_from_path(
+                pdf_path,
+                grayscale=True,
+                fmt="tiff",
+                dpi=500,
+            )
+
+            # Save TIFF to temp directory to avoid permission issues
+            # temp_dir = tempfile.gettempdir()
+            tiff_name = os.path.basename(pdf_path).replace(".pdf", ".tif")
+            tiff_path = os.path.join(temp_dir, tiff_name)
+
+            if len(images) != 0:
+                images[0].save(
+                    tiff_path,
+                    save_all=True,
+                    append_images=images[1:],
+                    compression="tiff_lzw",
+                )
+            else:
+                logger.error(f"Could not convert {pdf_path} to TIFF.")
+                return None
+
+            # if os.path.basename(pdf_path) in test_images_no_split:
+            #     print("Skipping test image")
+
+            return tiff_path
+
+        except Exception as e:
+            logger.error(f"Error converting {pdf_path} to TIFF: {e}")
+            return None

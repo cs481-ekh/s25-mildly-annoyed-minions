@@ -1,3 +1,4 @@
+# src/gui/app_window.py
 import os
 from tkinter import filedialog, scrolledtext, messagebox
 
@@ -7,7 +8,7 @@ except ImportError:
     from tkinter import *
 
 from tkinterdnd2 import TkinterDnD, DND_FILES
-from src.states import AppState
+from src.utils.states import AppState
 
 FILE_PIC_BASE_64 = ('iVBORw0KGgoAAAANSUhEUgAAADAAAAAwCAMAAABg3Am1AAAAk1BMVEVHcEzJz9j/Vi/'
                     'jMQbo6+7FytL/VS/ovrbq6+/e4Obs9fvhZUfbLwnYy835UizR1N3/VjDM0tn9XzzHzdb'
@@ -25,18 +26,9 @@ FILE_PIC_BASE_64 = ('iVBORw0KGgoAAAANSUhEUgAAADAAAAAwCAMAAABg3Am1AAAAk1BMVEVHcEz
                     '77I0NKLksiaJPKWfZAFq4kEWR/s4+xoT5zF+/4naBvEEwnub8pP7R+maUCbATwAAAAASUVO'
                     'RK5CYII=')
 
-
-class GUI():
-    """Class to represent the GUI."""
-
+class GUI:
+    """Class to represent the GUI application window."""
     def __init__(self, master):
-        self.last_window_width = None
-        self.select_button = None
-        self.inner_window = None
-        self.scrollbar = None
-        self.remove_button = None
-        self.canvas = None
-        self.remove_button_container = None
         self.master = master
         self.root = TkinterDnD.Tk()
         self.root.minsize(405, 405)
@@ -46,15 +38,24 @@ class GUI():
         self.master.current_state = AppState.FILE_SELECTION
         self.added_files = []
         self.selected_files = []
+        self.last_window_width = None
+        self.select_button = None
+        self.inner_window = None
+        self.scrollbar = None
+        self.remove_button = None
+        self.canvas = None
+        self.remove_button_container = None
         self.inner_frame = None
         self.drag_drop_label = None
         self.status_label = None
         self.process_button = None
         self.main_frame = None
+
+        self.file_icon = PhotoImage(data=FILE_PIC_BASE_64)
+
         self.create_main_frame()
         self.generate_frame()
         self.bind_window_resize()
-        self.file_icon = PhotoImage(data=FILE_PIC_BASE_64)
 
     def create_main_frame(self):
         self.main_frame = Frame(self.root)
@@ -159,6 +160,7 @@ class GUI():
         self.select_button.pack(side="right", padx=10)
 
     def create_processing_frame(self):
+        # Implementation for processing frame goes here.
         pass
 
     def create_results_frame(self):
@@ -183,8 +185,10 @@ class GUI():
         text_area.pack(expand=True, fill="both", padx=10, pady=5)
 
         # REPLACE WITH ACTUAL RESULTS DISPLAY AND HANDLING
-        text_area.insert(END, self.master.parsed_files[0][1])
-        text_area.config(state=DISABLED)
+        if self.master.parsed_files:
+            # Display the extracted text from the first parsed file
+            text_area.insert(END, self.master.parsed_files[0][1])
+        text_area.config(state="disabled")
 
         download_button = Button(
             self.inner_frame,
@@ -194,9 +198,11 @@ class GUI():
         download_button.pack(pady=10)
 
     def create_complete_frame(self):
+        # Implementation for complete frame goes here.
         pass
 
     def create_error_frame(self):
+        # Implementation for error frame goes here.
         pass
 
     def drop_file(self, event):
@@ -230,7 +236,7 @@ class GUI():
         valid_count, duplicate_count = 0, 0
         for file in filenames:
             if file not in self.added_files:
-                if not self.added_files and len(self.added_files) == 0:
+                if not self.added_files:
                     self.remove_drag_drop_label()
                 self.added_files.append(file)
                 valid_count += 1
@@ -256,11 +262,8 @@ class GUI():
         self.selected_files = []
 
         self.update_process_button_text()
-
         self.update_remove_button_visibility()
-
         self.arrange_files()
-
         self.update_file_status(remove=removed_count)
 
     def bind_window_resize(self):
@@ -300,7 +303,6 @@ class GUI():
 
     def arrange_files(self):
         self.canvas.delete("all")
-
         self.canvas.filenames = {}
         self.canvas.file_icon_ids = {}
         self.canvas.file_bg_ids = {}
@@ -320,28 +322,23 @@ class GUI():
             self.drag_drop_label = None
 
         icons_per_row = self.calculate_grid_layout()
-
         margin_x, margin_y = 30, 30
         icon_width, icon_height = 100, 120
-
         row, col = 0, 0
         for file_path in self.added_files:
             x = margin_x + (col * icon_width) + (icon_width / 2)
             y = margin_y + (row * icon_height)
-
             bg_rect = self.canvas.create_rectangle(
                 x - 40, y - 10,
                 x + 40, y + 90,
                 fill="", outline="", tags=('file_bg',)
             )
-
             icon_id = self.canvas.create_image(
                 x, y,
                 image=self.file_icon,
                 anchor='n',
                 tags=('file',)
             )
-
             text_id = self.canvas.create_text(
                 x, y + 50,
                 text=os.path.basename(file_path),
@@ -373,26 +370,22 @@ class GUI():
         total_rows = (len(self.added_files) + icons_per_row - 1) // icons_per_row
         canvas_height = margin_y + (total_rows * icon_height) + margin_y
         canvas_width = margin_x + (min(len(self.added_files), icons_per_row) * icon_width)
-
         self.canvas.config(scrollregion=(0, 0, canvas_width, canvas_height))
 
     def handle_canvas_click(self, event):
         if self.status_label:
             self.status_label.config(text="")
 
-        clicked_items = self.canvas.find_withtag(CURRENT)
-
+        clicked_items = self.canvas.find_withtag("current")
         if not clicked_items:
             self.deselect_all_files()
             return
 
         clicked_id = clicked_items[0]
-
         if clicked_id in self.canvas.filenames:
             file_path = self.canvas.filenames[clicked_id]
             icon_id = self.canvas.file_icon_ids.get(file_path)
             bg_id = self.canvas.file_bg_ids.get(file_path)
-
             if icon_id in self.selected_files:
                 self.deselect_file(file_path, bg_id)
             else:
@@ -401,7 +394,6 @@ class GUI():
             self.deselect_all_files()
 
         self.update_process_button_text()
-
         self.update_remove_button_visibility()
 
     def remove_drag_drop_label(self):
@@ -431,7 +423,7 @@ class GUI():
             self.remove_button.pack_forget()
 
     def select_file(self, file_path, bg_id):
-        self.canvas.itemconfig(bg_id, fill="#add8e6", outline="#4682b4")  # Light blue background
+        self.canvas.itemconfig(bg_id, fill="#add8e6", outline="#4682b4")
         self.selected_files.append(self.canvas.file_icon_ids[file_path])
         self.log_message(f"Selected file: {os.path.basename(file_path)}")
 
@@ -446,12 +438,9 @@ class GUI():
             if file_path in self.canvas.file_bg_ids:
                 bg_id = self.canvas.file_bg_ids[file_path]
                 self.canvas.itemconfig(bg_id, fill="", outline="")
-
         self.log_message(f"Deselected {len(self.selected_files)} files")
         self.selected_files = []
-
         self.update_process_button_text()
-
         self.update_remove_button_visibility()
 
     def get_selected_files(self):
@@ -481,31 +470,13 @@ class GUI():
             status_parts.append(f"Removed {remove} file{'s' if remove > 1 else ''}")
             status_type = "info"
 
-        if not status_parts:
-            status_message = "No files selected"
-            status_type = "info"
-        else:
-            status_message = " | ".join(status_parts)
-
+        status_message = "No files selected" if not status_parts else " | ".join(status_parts)
         self.update_status(status_message, status_type, True)
 
     def update_status(self, message, status_type="info", update_label=False):
-        prefix = {
-            "info": "INFO",
-            "success": "SUCCESS",
-            "warning": "WARNING",
-            "error": "ERROR"
-        }.get(status_type, "INFO")
-
+        prefix = {"info": "INFO", "success": "SUCCESS", "warning": "WARNING", "error": "ERROR"}.get(status_type, "INFO")
         print(f"[{prefix}] {message}")
-
-        colors = {
-            "info": "blue",
-            "success": "green",
-            "warning": "orange",
-            "error": "red"
-        }
-
+        colors = {"info": "blue", "success": "green", "warning": "orange", "error": "red"}
         if update_label and self.status_label:
             self.status_label.config(text=message, fg=colors.get(status_type, "black"))
 
@@ -518,33 +489,22 @@ class GUI():
             "warning": messagebox.showwarning,
             "info": messagebox.showinfo,
             "confirm": messagebox.askyesnocancel
-            # OTHER TYPES OF ERROR / NOTIFICATION MESSAGING SUPPORTED
         }
-
         self.log_message(f"{title}: {message}", msg_type)
-
         msgbox_funcs.get(msg_type, messagebox.showerror)(title, message, parent=self.main_frame)
 
     def process_files(self):
         if self.status_label:
             self.status_label.config(text="")
-
         files_to_process = self.get_selected_files() if self.selected_files else self.added_files
-
         if files_to_process:
             self.master.process_files(files_to_process)
         else:
             self.handle_error("Processing Error", "Parsing failed. No PDF files were selected.")
 
     def show_info(self, title, message):
-        """
-        Display an information message to the user.
-
-        Parameters:
-        title (str): The title of the message box
-        message (str): The message to display
-        """
         messagebox.showinfo(title, message, parent=self.root)
 
     def handle_results(self):
+        # Implementation to handle and display OCR results
         pass
