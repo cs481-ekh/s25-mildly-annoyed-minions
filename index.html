@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>R&D Labs Directories Parser</title>
+    <link rel="icon" type="image/x-icon" href="assets/favicon.ico">
+    <style>
+        body {
+          font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+          margin: 0;
+          padding: 0;
+          background-color: #f4f4f9;
+          color: #333;
+        }
+
+        header {
+          background-color: #3f51b5;
+          color: white;
+          padding: 2rem 1rem;
+          text-align: center;
+        }
+
+        .container {
+          max-width: 900px;
+          margin: auto;
+          padding: 2rem 1rem;
+        }
+
+        section {
+          background: white;
+          padding: 1.5rem;
+          margin-bottom: 2rem;
+          border-radius: 10px;
+          box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+        }
+
+        h2 {
+          color: #3f51b5;
+        }
+
+        ul {
+          padding-left: 1.5rem;
+        }
+
+        .image-row {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 1rem;
+          margin-top: 1rem;
+          justify-content: center;
+        }
+
+        img.responsive {
+          max-width: 100%;
+          height: auto;
+          display: block;
+          margin: 1rem 0;
+          border-radius: 8px;
+          box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
+        }
+
+        .image-row img.responsive {
+          flex: 1 1 45%;
+          max-width: 45%;
+          height: auto;
+          border-radius: 8px;
+          box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
+        }
+
+        footer {
+          text-align: center;
+          font-size: 0.9rem;
+          color: #777;
+          padding: 1rem;
+        }
+    </style>
+</head>
+<body>
+<header>
+    <h1>R&D Labs Directories Parser</h1>
+    <p>GitHub Page</p>
+</header>
+
+<div class="container">
+    <section id="members">
+        <h2>Project Members</h2>
+        <ul>
+            <li><a href="https://github.com/Dylan-Gresham" target="_blank">Dylan Gresham</a></li>
+            <li><a href="https://github.com/cjk-bsu" target="_blank">Carson Keller</a></li>
+            <li><a href="https://github.com/joshmiller394" target="_blank">Josh Miller</a></li>
+        </ul>
+    </section>
+
+    <section id="abstract">
+        <h2>Abstract</h2>
+        <p>
+            Innovation plays a critical role in economic growth, and research and development (R&D) labs have
+            historically been at the forefront of major technological advancements. However, valuable data on U.S.
+            research and development labs from 1975-1998 contained in notable directories of the time remain largely
+            inaccessible due to their printed format. This project aims to digitize and process these directories,
+            transforming them into a structured, digital dataset suitable for economic data analysis.
+        </p>
+        <p>
+            Our solution involves developing a program based on Optical Character Recognition (OCR) to extract and clean
+            key attributes from scanned directories, standardizing information such as lab names, locations, research
+            fields, and parent companies. Once digitized, the data will be optimized for longitudinal analysis and
+            integration with other datasets, enabling future research into the role of these R&D labs in innovation.
+        </p>
+        <p>
+            The potential impact is significant: researchers will gain access to a comprehensive dataset, allowing for
+            new insights into the historical relationship between corporate R&D efforts and technological progress.
+            Additionally, the project will deliver a functional data-processing tool, ensuring sustainability for
+            future digitization efforts.
+        </p>
+    </section>
+
+    <section id="description">
+        <h2>What We Actually Built</h2>
+        <p>
+            The program that we've created consists of a graphical user interface (GUI) built with
+            <a href="https://docs.python.org/3/library/tkinter.html" target="_blank">Tkinter</a> where users can upload
+            files, select the ones they want to extract using our program and receive a structured CSV output of the PDF.
+        </p>
+        <div class="image-row">
+            <img src="assets/no-selected.png" alt="GUI with files but none selected." class="responsive"/>
+            <img src="assets/some-selected.png" alt="GUI with some files selected." class="responsive" />
+        </div>
+        <p>
+            In its current state, our program doesn't handle all the entries correctly. Most entries are parsed
+            properly but, entries that are read with inconsistent spacing, extra information, or incomplete information
+            aren't able to extracted properly. All the information that isn't able to be parsed properly gets placed
+            in the "miscellaneous" column.
+        </p>
+        <p>
+            The input documents are pre-processed using the <a href="https://opencv.org" target="_blank">OpenCV</a>
+            image processing library in which we enhance the image clarity as much as possible and draw boxes around
+            entries so that the OCR engine is able to determine groups of text properly. The OCR Engine that we utilized
+            is <a href="https://github.com/tesseract-ocr/tesseract" target="_blank">Tesseract</a> OCR Engine as it is
+            one of the best free, open-source OCR Engine of today. We decided to go with Tesseract because it is well
+            known as a great OCR Engine, accessible, easy to use due to the pytesseract library, and is computationally
+            efficient in comparison to some of the transformer based models that are out there today.
+        </p>
+        <p>
+            After pre-processing, files are run through Tesseract to produce blocks of raw text, each block
+            corresponding to a single entry. These blocks are then run through our custom parser to extract fields
+            before getting written out to a CSV file.
+        </p>
+        <img src="assets/SDP-Prog-Flow.png" alt="Flowchart showing the program's general structure." class="responsive" />
+    </section>
+</div>
+
+<footer>
+    &copy; 2025 Team Mildly Annoyed Minions | Hosted on GitHub Pages
+</footer>
+</body>
+</html>
