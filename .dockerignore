@@ -1,0 +1,12 @@
+resources
+.env
+.github
+tests
+.gitignore
+.git
+build.sh
+clean.sh
+test.sh
+CONTRIBUTORS
+README.md
+LICENSE
