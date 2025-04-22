@@ -1,11 +1,13 @@
-import tempfile
 import os
+import tempfile
 
 import cv2
 import pytesseract
 from pdf2image import convert_from_path
 
-from src.utils import logger
+from src.utils.logger import get_logger
+
+logger = get_logger("image_processor")
 
 
 WHITELIST = """ !\\"#$%&\\'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]`abcdefghijklmnopqrstuvwxyz{|}"""
@@ -64,7 +66,8 @@ class ImageProcessor:
 
         # Pair each contour with its bounding box, filter by height, and sort by y-position descending
         contour_boxes = [
-            (cnt, cv2.boundingRect(cnt)) for cnt in contours
+            (cnt, cv2.boundingRect(cnt))
+            for cnt in contours
             if cv2.boundingRect(cnt)[3] > min_height
         ]
         contour_boxes.sort(key=lambda cb: cb[1][1], reverse=False)  # Sort by y
@@ -89,50 +92,9 @@ class ImageProcessor:
         """
         if self.split:
             left_col, right_col = self.split_page()
-            left_paths, right_paths = self.process_half(left_col), self.process_half(right_col)
-
-            text = ""
-
-            for tmp_file in left_paths:
-                img = cv2.imread(tmp_file)
-                text += pytesseract.image_to_string(
-                    img, lang="eng", config=tess_config
-                ).replace("|", "1")
-                text += "\n"
-                os.remove(tmp_file)
-            for tmp_file in right_paths:
-                img = cv2.imread(tmp_file)
-                text += pytesseract.image_to_string(
-                    img, lang="eng", config=tess_config
-                ).replace("|", "1")
-                text += "\n"
-                os.remove(tmp_file)
-
-            return text
-        else:
-            processed_paths = self.process_half(self.image)
-
-            text = ""
-
-            for tmp_file in processed_paths:
-                img = cv2.imread(tmp_file)
-                text += pytesseract.image_to_string(
-                    img, lang="eng", config=tess_config
-                ).replace("|", "1")
-                text += "\n"
-                os.remove(tmp_file)
-
-            return text
-
-    def process_image(self):
-        """
-        Processes the image.
-
-        :return: The full text of the page.
-        """
-        if self.split:
-            left_col, right_col = self.split_page()
-            left_paths, right_paths = self.process_half(left_col), self.process_half(right_col)
+            left_paths, right_paths = self.process_half(left_col), self.process_half(
+                right_col
+            )
 
             text = ""
 
@@ -183,7 +145,6 @@ class ImageProcessor:
             )
 
             # Save TIFF to temp directory to avoid permission issues
-            # temp_dir = tempfile.gettempdir()
             tiff_name = os.path.basename(pdf_path).replace(".pdf", ".tif")
             tiff_path = os.path.join(temp_dir, tiff_name)
 
@@ -198,11 +159,8 @@ class ImageProcessor:
                 logger.error(f"Could not convert {pdf_path} to TIFF.")
                 return None
 
-            # if os.path.basename(pdf_path) in test_images_no_split:
-            #     print("Skipping test image")
-
             return tiff_path
-
         except Exception as e:
+            print(f"Error convert PDF to TIFF: {e}")
             logger.error(f"Error converting {pdf_path} to TIFF: {e}")
             return None
