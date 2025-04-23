@@ -85,6 +85,7 @@ class GUI:
         top_frame.columnconfigure(1, weight=1)
         top_frame.columnconfigure(2, weight=0, minsize=205)
 
+
         self.logo_label = Label(top_frame, image=self.sdp_logo)
         self.logo_label.grid(row=0, column=0, padx=10, pady=5, sticky="w")
 
@@ -114,11 +115,12 @@ class GUI:
         content_frame.pack(expand=True, fill="both")
         content_frame.grid_rowconfigure(1, weight=1)
         content_frame.grid_columnconfigure(0, weight=1)
-
+        
         file_display_window = Frame(content_frame)
         file_display_window.grid(row=1, column=0, padx=5, pady=5, sticky="news")
         file_display_window.grid_rowconfigure(0, weight=1)
         file_display_window.grid_columnconfigure(0, weight=1)
+
 
         canvas_bg = "#f7f7f7" if not self.added_files else "white"
         self.canvas = Canvas(file_display_window, bg=canvas_bg, relief="sunken", bd=1)

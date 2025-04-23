@@ -11,6 +11,7 @@ from PIL import Image
 
 from src.utils.config import set_tesseract_path
 from src.core.image_processor import ImageProcessor
+from src.utils.ocr_utils import parse_file_to_csv
 
 if platform.system() == "Windows":
     import winreg
@@ -84,7 +85,6 @@ class OCRProcessor:
                                 extracted_text += future.result() + "\n"
                             except Exception as e:
                                 extracted_text += f"\nError: {e}\n"
-
             finally:
                 if os.path.exists(image_path):
                     try:
@@ -118,18 +118,6 @@ class OCRProcessor:
                 pass
             return os.path.join(os.path.expanduser("~"), "Downloads")
 
-    # def clean_text(self, extracted_text):
-    #     """Cleans text into the expected format.
-    #
-    #     :return: The cleaned text in CSV-ready format (DataFrame, list of rows, etc.)"""
-    #     # TODO: Will be implemented in a Sprint after Sprint 2.
-    #     try:
-    #         return extracted_text
-    #     except Exception as e:
-    #         error_message = f"Failed to save CSV file: {str(e)}"
-    #         self.master.gui.handle_error("Cleaning Error", error_message)
-    #         return extracted_text
-
     def save_csv(self, csv_path, extracted_text):
         """Saves the extracted text into the CSV file.
 
@@ -150,48 +138,7 @@ class OCRProcessor:
                 if year_part.isdigit() and len(year_part) == 4:
                     year = year_part
 
-            with open(final_csv_path, mode="w", newline="", encoding="utf-8") as file:
-                writer = csv.writer(file)
-
-                # Write the header with all columns from the example CSV
-                writer.writerow(
-                    [
-                        "year",
-                        "code",
-                        "title",
-                        "street",
-                        "city",
-                        "state",
-                        "zip",
-                        "phone",
-                        "tag",
-                        "staff",
-                        "doctorates",
-                        "numTechsAndAuxs",
-                        "fields",
-                        "note",
-                    ]
-                )
-
-                # Create a row with the year from the filename and extracted text in the notes field
-                writer.writerow(
-                    [
-                        year,  # year from filename or empty
-                        "",  # code
-                        "",  # title
-                        "",  # street
-                        "",  # city
-                        "",  # state
-                        "",  # zip
-                        "",  # phone
-                        "",  # tag
-                        "",  # staff
-                        "",  # doctorates
-                        "",  # numTechsAndAuxs
-                        "",  # fields
-                        extracted_text,  # note - full text for you to parse later
-                    ]
-                )
+            parse_file_to_csv(extracted_text, year, final_csv_path)
 
             # Notify the user where the file was saved
             self.master.gui.show_info(
@@ -304,48 +251,20 @@ class OCRProcessorNoGUI:
         :return: Either the path to the CSV file or None.
         """
         try:
-            with open(csv_path, mode="w", newline="", encoding="utf-8") as file:
-                writer = csv.writer(file)
+            # Get the year from the filename if possible (format like "1975-a1_1-2")
+            filename = os.path.basename(csv_path)
+            year = ""
+            if "-" in filename:
+                year_part = filename.split("-")[0]
+                if year_part.isdigit() and len(year_part) == 4:
+                    year = year_part
 
-                # Write the header with all columns from the example CSV
-                writer.writerow(
-                    [
-                        "year",
-                        "code",
-                        "title",
-                        "street",
-                        "city",
-                        "state",
-                        "zip",
-                        "phone",
-                        "tag",
-                        "staff",
-                        "doctorates",
-                        "numTechsAndAuxs",
-                        "fields",
-                        "note",
-                    ]
-                )
+            parse_file_to_csv(extracted_text, year, csv_path)
 
-                # Create a row with the year from the filename and extracted text in the notes field
-                writer.writerow(
-                    [
-                        "",  # year from filename or empty
-                        "",  # code
-                        "",  # title
-                        "",  # street
-                        "",  # city
-                        "",  # state
-                        "",  # zip
-                        "",  # phone
-                        "",  # tag
-                        "",  # staff
-                        "",  # doctorates
-                        "",  # numTechsAndAuxs
-                        "",  # fields
-                        extracted_text,  # note - full text for you to parse later
-                    ]
-                )
+            print(f"Successfully saved to {csv_path}")
+
+            return csv_path
         except Exception as e:
-            print("The file could not be saved!")
-            print(e)
+            error_message = f"Failed to save CSV file: {str(e)}"
+            print(error_message)
+            return None
