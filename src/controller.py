@@ -1,7 +1,7 @@
 import multiprocessing
 import threading
 from multiprocessing import Queue
-from src.utils.states import AppState
+from src.utils.globals import AppState
 from src.ocr import OCRProcessor, process_pdf_worker
 from src.gui.gui import GUI
 

@@ -8,58 +8,40 @@ except ImportError:
     from tkinter import *
 
 from tkinterdnd2 import TkinterDnD, DND_FILES
-from src.utils.states import AppState
+from src.utils.globals import AppState, FILE_PIC_BASE_64, SDP_LOGO
 
-FILE_PIC_BASE_64 = ('iVBORw0KGgoAAAANSUhEUgAAADAAAAAwCAMAAABg3Am1AAAAk1BMVEVHcEzJz9j/Vi/'
-                    'jMQbo6+7FytL/VS/ovrbq6+/e4Obs9fvhZUfbLwnYy835UizR1N3/VjDM0tn9XzzHzdb'
-                    '/79Dr7PD/VjDu7/PCyND8clO/xc7/WTP/UCjs7vL/SiL/RBrFy9T29/v//v7/8/D/ppP'
-                    '/va709Pn/moP/3NX/ZEH/Uyz/xLf/0Mb/6eT/hGj/eFpHcEwgl6rUAAAAMXRSTlMA9NT7'
-                    'TULPA/77+e9KZ/glnOze4f////////////////////////////////////8A2zK2aQAAA'
-                    'clJREFUSMfN1e1ugjAUBuBuTkCdClsoaEthFGwpftz/3e0UxLFRCvuz7E1MQzhPzkEKIAR'
-                    'x0TZJvPBnVu9LOGWIi/ZhNKyPVllgFi56+RjWAzhmT0YxDkbEOIjNwgLMwgaMwjaSUdg7G'
-                    'IQVmKaa6DAU9g7H4VRTIw16WO50FxDv+6kOevd9JV69PFqMgTDxeolmgH68058Cdx5wvzp'
-                    'sTzPAtuvgotfNOpwE681rK6B+MQOE682iEbp+LmgF1ANIJqMBCISe1W63O8wIlClHA4IJp'
-                    'k1YqkNVszJFaXOcsvYslJE7aEPotYQIWIuiEAdKsCh0bupR8h2wIuec52dWw5rngpJLriP'
-                    'YOKgoLfJDyQmpyvzGLmdcVVVXYAQsFQ1QlPASQArDKwuQZ5lLWnO4PiYlk3pGbhtJSllW6'
-                    'QNceFmX9ZWOdYBpUsowqzl+jMQYo3gc3CghBEDVXbQ+xpZrAABr+7cWFHPJeuV90PzUQVT'
-                    '6dioB96/Qk4urGgJfN+22Rm+LNFvjvivuW4MQXz8PvuO8zdl8b47j6+fB/c1LoH3k5gP3/'
-                    '77I0NKLksiaJPKWfZAFq4kEWR/s4+xoT5zF+/4naBvEEwnub8pP7R+maUCbATwAAAAASUVO'
-                    'RK5CYII=')
 
 class GUI:
     """Class to represent the GUI application window."""
     def __init__(self, master):
         self.master = master
         self.root = TkinterDnD.Tk()
-        self.root.minsize(405, 405)
-        self.root.geometry("600x500")
+        self.root.minsize(810, 648)
+        self.root.geometry("810x648")
         self.root.title("R&D Labs Directory Parser")
         self.state = AppState.FILE_SELECTION
         self.master.current_state = AppState.FILE_SELECTION
         self.added_files = []
         self.selected_files = []
-        self.last_window_width = None
+        self.last_window_width = self.root.winfo_width()
         self.select_button = None
         self.inner_window = None
         self.scrollbar = None
+        self.remove_button_container = None
         self.remove_button = None
         self.canvas = None
-        self.remove_button_container = None
         self.inner_frame = None
+        self.page_title_label = None
+        self.logo_label = None
         self.drag_drop_label = None
         self.status_label = None
         self.process_button = None
         self.main_frame = None
-
+        self.sdp_logo = PhotoImage(data=SDP_LOGO)
         self.file_icon = PhotoImage(data=FILE_PIC_BASE_64)
-
         self.create_main_frame()
         self.generate_frame()
         self.bind_window_resize()
-
-    def create_main_frame(self):
-        self.main_frame = Frame(self.root)
-        self.main_frame.pack(expand=True, fill="both")
 
     def generate_frame(self):
         if self.main_frame:
@@ -84,19 +66,32 @@ class GUI:
         self.log_message(f"State changed from {old_state} to {new_state}", "info")
         self.generate_frame()
 
-    def create_file_selection_frame(self):
-        frame = Frame(self.main_frame)
-        frame.pack(expand=True, fill="both")
-        frame.grid_rowconfigure(1, weight=1)
-        frame.grid_columnconfigure(0, weight=1)
+    def create_main_frame(self):
+        self.main_frame = Frame(self.root)
+        self.main_frame.pack(expand=True, fill="both")
 
-        top_frame = Frame(frame, height=30)
-        top_frame.grid(row=0, column=0, padx=5, pady=5, sticky="ew")
-        top_frame.grid_columnconfigure(0, weight=1)
+        top_frame = Frame(self.main_frame, height=60)
+        top_frame.pack(side="top", fill="x", anchor="n", pady=(5, 0))
         top_frame.pack_propagate(False)
 
+        top_frame.columnconfigure(0, weight=0, minsize=160)
+        top_frame.columnconfigure(1, weight=1)
+        top_frame.columnconfigure(2, weight=0, minsize=160)
+
+        self.logo_label = Label(top_frame, image=self.sdp_logo)
+        self.logo_label.grid(row=0, column=0, padx=10, pady=5, sticky="w")
+
+        title_frame = Frame(top_frame)
+        title_frame.grid(row=0, column=1, sticky="nsew")
+        title_frame.columnconfigure(0, weight=1)
+        title_frame.rowconfigure(0, weight=1)
+
+        self.page_title_label = Label(title_frame, text="Page Title", font=("Arial", 14, "bold"))
+        self.page_title_label.grid(row=0, column=0, sticky="nsew")
+
         self.remove_button_container = Frame(top_frame)
-        self.remove_button_container.pack(side="right", padx=5)
+        self.remove_button_container.grid(row=0, column=2, sticky="se")
+        # self.remove_button_container.pack(side="bottom", padx=5)
         self.remove_button = Button(
             self.remove_button_container,
             text="X",
@@ -105,10 +100,16 @@ class GUI:
             bg="red",
             width=3,
             padx=4,
-            pady=2
+            pady=5
         )
 
-        main_frame = Frame(frame)
+    def create_file_selection_frame(self):
+        content_frame = Frame(self.main_frame)
+        content_frame.pack(expand=True, fill="both")
+        content_frame.grid_rowconfigure(1, weight=1)
+        content_frame.grid_columnconfigure(0, weight=1)
+
+        main_frame = Frame(content_frame)
         main_frame.grid(row=1, column=0, padx=5, pady=5, sticky="news")
         main_frame.grid_rowconfigure(0, weight=1)
         main_frame.grid_columnconfigure(0, weight=1)
@@ -137,7 +138,7 @@ class GUI:
                                          font=("Arial", 10), fg="#555555", bg=canvas_bg)
             self.drag_drop_label.pack(expand=True, fill="both")
 
-        bottom_frame = Frame(frame, height=40)
+        bottom_frame = Frame(content_frame, height=40)
         bottom_frame.grid(row=2, column=0, padx=5, pady=10, sticky="ew")
         bottom_frame.grid_columnconfigure(0, weight=1)
         bottom_frame.grid_propagate(False)
@@ -159,27 +160,29 @@ class GUI:
         self.select_button = Button(button_frame, text="Select Files", command=self.add_files)
         self.select_button.pack(side="right", padx=10)
 
+        self.update_page_title("Select Files to Parse")
+
     def create_processing_frame(self):
         # Implementation for processing frame goes here.
+
+        self.update_page_title("Processing")
+
         pass
 
     def create_results_frame(self):
-        frame = Frame(self.main_frame)
-        frame.pack(expand=True, fill="both")
+        content_frame = Frame(self.main_frame)
+        content_frame.pack(expand=True, fill="both")
 
-        main_frame = Frame(frame)
+        main_frame = Frame(content_frame)
         main_frame.grid(row=1, column=0, padx=5, pady=5, sticky="news")
         main_frame.grid_rowconfigure(0, weight=1)
         main_frame.grid_columnconfigure(0, weight=1)
 
-        frame.grid_columnconfigure(0, weight=1)
-        frame.grid_rowconfigure(0, weight=1)
+        content_frame.grid_columnconfigure(0, weight=1)
+        content_frame.grid_rowconfigure(0, weight=1)
 
-        self.inner_frame = Frame(frame)
+        self.inner_frame = Frame(content_frame)
         self.inner_frame.grid(row=0, column=0, padx=10, pady=10, sticky="news")
-
-        label = Label(self.inner_frame, text="OCR Results", font=("Arial", 14, "bold"))
-        label.pack(pady=10)
 
         text_area = scrolledtext.ScrolledText(self.inner_frame, wrap=WORD, height=15)
         text_area.pack(expand=True, fill="both", padx=10, pady=5)
@@ -197,6 +200,8 @@ class GUI:
         )
         download_button.pack(pady=10)
 
+        self.update_page_title("OCR Results")
+
     def create_complete_frame(self):
         # Implementation for complete frame goes here.
         pass
@@ -204,6 +209,9 @@ class GUI:
     def create_error_frame(self):
         # Implementation for error frame goes here.
         pass
+
+    def update_page_title(self, new_title):
+        self.page_title_label.config(text=new_title)
 
     def drop_file(self, event):
         files = self.root.splitlist(event.data)
