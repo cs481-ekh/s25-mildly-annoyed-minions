@@ -141,7 +141,7 @@ class ImageProcessor:
                 pdf_path,
                 grayscale=True,
                 fmt="tiff",
-                dpi=500,
+                dpi=400,
             )
 
             # Save TIFF to temp directory to avoid permission issues

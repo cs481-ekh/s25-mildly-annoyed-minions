@@ -161,7 +161,7 @@ def parse_entry(entry, year, parent_code=None, parent_title=None):
     match = re.search(r"Tel:\s*([\d\-]+)", entry_str)
     if match:
         row["phone"] = match.group(1).strip()
-        if entry_str[match.end() + 1] == ";":
+        if match.end() < len(entry_str) - 1 and entry_str[match.end() + 1] == ";":
             entry_str = f"{entry_str[:match.start()]}{entry_str[match.end() + 2:]}"
         else:
             entry_str = entry_str.replace(match.group(0), "", 1).strip()
@@ -169,7 +169,7 @@ def parse_entry(entry, year, parent_code=None, parent_title=None):
         match = re.search(r"\s*([\d\-]+)", entry_str)
         if match:
             row["phone"] = match.group(1).strip()
-            if entry_str[match.end() + 1] == ";":
+            if match.end() < len(entry_str) - 1 and entry_str[match.end() + 1] == ";":
                 entry_str = f"{entry_str[:match.start()]}{entry_str[match.end() + 2:]}"
             else:
                 entry_str = entry_str.replace(match.group(0), "", 1).strip()
@@ -244,8 +244,6 @@ def parse_file_to_csv(content, year, output_path):
                 i += 1
             else:
                 break
-
-        print(entry + "\n" * 2)
 
         if entry.strip():
             row, parent_code, parent_title = parse_entry(

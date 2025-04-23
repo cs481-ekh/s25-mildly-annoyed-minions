@@ -1,4 +1,5 @@
-import csv
+import traceback
+import sys
 import os
 import platform
 import subprocess
@@ -15,6 +16,7 @@ from src.utils.ocr_utils import parse_file_to_csv
 
 if platform.system() == "Windows":
     import winreg
+
 
 def process_pdf_worker(pdf_path, result_queue):
     """Standalone worker for multiprocessing."""
@@ -71,7 +73,9 @@ class OCRProcessor:
                         img_cv2 = cv2.cvtColor(img_cv2, cv2.COLOR_RGB2BGR)
                         img_processor = ImageProcessor(
                             img_cv2,
-                            split=False if basename in self.test_images_no_split else True
+                            split=(
+                                False if basename in self.test_images_no_split else True
+                            ),
                         )
 
                         processed_text = img_processor.process_image() + "\n"
@@ -79,7 +83,9 @@ class OCRProcessor:
                         return processed_text
 
                     with ThreadPoolExecutor(max_workers=4) as executor:
-                        futures = [executor.submit(process_page, i) for i in range(num_pages)]
+                        futures = [
+                            executor.submit(process_page, i) for i in range(num_pages)
+                        ]
                         for future in as_completed(futures):
                             try:
                                 extracted_text += future.result() + "\n"
@@ -91,14 +97,17 @@ class OCRProcessor:
                         os.remove(image_path)
                     except Exception as e:
                         self.master.gui.handle_error(
-                                "File Deletion Error", f"Failed to delete file: {image_path}\n{str(e)}"
+                            "File Deletion Error",
+                            f"Failed to delete file: {image_path}\n{str(e)}",
                         )
 
         return csv_path, extracted_text
 
     def get_downloads_folder(self):
         if platform.system() == "Windows":
-            sub_key = r"SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\Shell Folders"
+            sub_key = (
+                r"SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\Shell Folders"
+            )
             downloads_guid = "{374DE290-123F-4565-9164-39C4925E467B}"
             try:
                 with winreg.OpenKey(winreg.HKEY_CURRENT_USER, sub_key) as key:
@@ -111,7 +120,11 @@ class OCRProcessor:
 
         else:
             try:
-                xdg_path = subprocess.check_output(["xdg-user-dir", "DOWNLOAD"]).decode().strip()
+                xdg_path = (
+                    subprocess.check_output(["xdg-user-dir", "DOWNLOAD"])
+                    .decode()
+                    .strip()
+                )
                 if os.path.exists(xdg_path):
                     return xdg_path
             except Exception:
@@ -149,7 +162,9 @@ class OCRProcessor:
         except Exception as e:
             error_message = f"Failed to save CSV file: {str(e)}"
             self.master.gui.handle_error("File Save Error", error_message)
+            traceback.print_exc(file=sys.stdout)
             return None
+
 
 class OCRProcessorNoGUI:
     """Class to handle OCR operations, without GUI. Only meant to be used for the Docker image."""
@@ -197,7 +212,9 @@ class OCRProcessorNoGUI:
                         img_cv2 = cv2.cvtColor(img_cv2, cv2.COLOR_RGB2BGR)
                         img_processor = ImageProcessor(
                             img_cv2,
-                            split=False if basename in self.test_images_no_split else True
+                            split=(
+                                False if basename in self.test_images_no_split else True
+                            ),
                         )
 
                         processed_text = img_processor.process_image() + "\n"
@@ -205,7 +222,9 @@ class OCRProcessorNoGUI:
                         return processed_text
 
                     with ThreadPoolExecutor(max_workers=4) as executor:
-                        futures = [executor.submit(process_page, i) for i in range(num_pages)]
+                        futures = [
+                            executor.submit(process_page, i) for i in range(num_pages)
+                        ]
                         for future in as_completed(futures):
                             try:
                                 extracted_text += future.result() + "\n"
@@ -223,7 +242,9 @@ class OCRProcessorNoGUI:
 
     def get_downloads_folder(self):
         if platform.system() == "Windows":
-            sub_key = r"SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\Shell Folders"
+            sub_key = (
+                r"SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\Shell Folders"
+            )
             downloads_guid = "{374DE290-123F-4565-9164-39C4925E467B}"
             try:
                 with winreg.OpenKey(winreg.HKEY_CURRENT_USER, sub_key) as key:
@@ -236,7 +257,11 @@ class OCRProcessorNoGUI:
 
         else:
             try:
-                xdg_path = subprocess.check_output(["xdg-user-dir", "DOWNLOAD"]).decode().strip()
+                xdg_path = (
+                    subprocess.check_output(["xdg-user-dir", "DOWNLOAD"])
+                    .decode()
+                    .strip()
+                )
                 if os.path.exists(xdg_path):
                     return xdg_path
             except Exception:
