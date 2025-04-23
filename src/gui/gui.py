@@ -2,6 +2,9 @@
 import os
 from tkinter import filedialog, scrolledtext, messagebox
 
+import PIL
+from PIL import Image, ImageDraw, ImageTk
+
 try:
     from Tkinter import *
 except ImportError:
@@ -30,6 +33,10 @@ class GUI:
         self.remove_button_container = None
         self.remove_button = None
         self.canvas = None
+        self.rect_select_start_x = None
+        self.rect_select_start_y = None
+        self.rect_select_current = None
+        self.rect_selection_active = False
         self.inner_frame = None
         self.page_title_label = None
         self.logo_label = None
@@ -74,9 +81,9 @@ class GUI:
         top_frame.pack(side="top", fill="x", anchor="n", pady=(5, 0))
         top_frame.pack_propagate(False)
 
-        top_frame.columnconfigure(0, weight=0, minsize=160)
+        top_frame.columnconfigure(0, weight=0, minsize=150)
         top_frame.columnconfigure(1, weight=1)
-        top_frame.columnconfigure(2, weight=0, minsize=160)
+        top_frame.columnconfigure(2, weight=0, minsize=205)
 
         self.logo_label = Label(top_frame, image=self.sdp_logo)
         self.logo_label.grid(row=0, column=0, padx=10, pady=5, sticky="w")
@@ -90,8 +97,7 @@ class GUI:
         self.page_title_label.grid(row=0, column=0, sticky="nsew")
 
         self.remove_button_container = Frame(top_frame)
-        self.remove_button_container.grid(row=0, column=2, sticky="se")
-        # self.remove_button_container.pack(side="bottom", padx=5)
+        self.remove_button_container.grid(row=0, column=2, padx=(0, 28), sticky="se")
         self.remove_button = Button(
             self.remove_button_container,
             text="X",
@@ -109,15 +115,15 @@ class GUI:
         content_frame.grid_rowconfigure(1, weight=1)
         content_frame.grid_columnconfigure(0, weight=1)
 
-        main_frame = Frame(content_frame)
-        main_frame.grid(row=1, column=0, padx=5, pady=5, sticky="news")
-        main_frame.grid_rowconfigure(0, weight=1)
-        main_frame.grid_columnconfigure(0, weight=1)
+        file_display_window = Frame(content_frame)
+        file_display_window.grid(row=1, column=0, padx=5, pady=5, sticky="news")
+        file_display_window.grid_rowconfigure(0, weight=1)
+        file_display_window.grid_columnconfigure(0, weight=1)
 
         canvas_bg = "#f7f7f7" if not self.added_files else "white"
-        self.canvas = Canvas(main_frame, bg=canvas_bg, relief="sunken", bd=1)
+        self.canvas = Canvas(file_display_window, bg=canvas_bg, relief="sunken", bd=1)
         self.canvas.grid(row=0, column=0, padx=5, pady=5, sticky="news")
-        self.scrollbar = Scrollbar(main_frame, orient="vertical", command=self.canvas.yview)
+        self.scrollbar = Scrollbar(file_display_window, orient="vertical", command=self.canvas.yview)
         self.scrollbar.grid(row=0, column=1, sticky="ns")
         self.canvas.configure(yscrollcommand=self.scrollbar.set)
 
@@ -130,7 +136,8 @@ class GUI:
         self.canvas.file_icon_ids = {}
         self.canvas.file_bg_ids = {}
         self.canvas.nextcoords = [60, 20]
-        self.canvas.bind("<Button-1>", self.handle_canvas_click)
+        # self.canvas.bind("<Button-1>", self.handle_canvas_click)
+        self.setup_rectangle_selection()
         self.bind_mousewheel_to_canvas()
 
         if not self.added_files:
@@ -380,26 +387,135 @@ class GUI:
         canvas_width = margin_x + (min(len(self.added_files), icons_per_row) * icon_width)
         self.canvas.config(scrollregion=(0, 0, canvas_width, canvas_height))
 
-    def handle_canvas_click(self, event):
-        if self.status_label:
-            self.status_label.config(text="")
+    def setup_rectangle_selection(self):
+        """Set up variables and bindings for rectangle selection."""
+        self.rect_select_start_x = None
+        self.rect_select_start_y = None
+        self.rect_select_current = None
+        self.rect_selection_active = False
 
-        clicked_items = self.canvas.find_withtag("current")
-        if not clicked_items:
-            self.deselect_all_files()
+        # Bind events for rectangle selection
+        self.canvas.bind("<ButtonPress-1>", self.on_mouse_down)
+        self.canvas.bind("<B1-Motion>", self.on_mouse_drag)
+        self.canvas.bind("<ButtonRelease-1>", self.on_mouse_up)
+
+    def on_mouse_down(self, event):
+        """Handle mouse button press event."""
+        if not self.added_files:
             return
 
-        clicked_id = clicked_items[0]
-        if clicked_id in self.canvas.filenames:
-            file_path = self.canvas.filenames[clicked_id]
-            icon_id = self.canvas.file_icon_ids.get(file_path)
-            bg_id = self.canvas.file_bg_ids.get(file_path)
-            if icon_id in self.selected_files:
-                self.deselect_file(file_path, bg_id)
-            else:
-                self.select_file(file_path, bg_id)
-        else:
-            self.deselect_all_files()
+        canvas_x = self.canvas.canvasx(event.x)
+        canvas_y = self.canvas.canvasy(event.y)
+
+        clicked_items = self.canvas.find_overlapping(canvas_x - 1, canvas_y - 1, canvas_x + 1, canvas_y + 1)
+
+        if clicked_items:
+            clicked_id = clicked_items[0]
+            if clicked_id in self.canvas.filenames:
+                file_path = self.canvas.filenames[clicked_id]
+                icon_id = self.canvas.file_icon_ids.get(file_path)
+                bg_id = self.canvas.file_bg_ids.get(file_path)
+                if icon_id in self.selected_files:
+                    self.deselect_file(file_path, bg_id)
+                else:
+                    self.select_file(file_path, bg_id)
+
+                self.update_process_button_text()
+                self.update_remove_button_visibility()
+                return
+
+        self.deselect_all_files()
+        self.rect_select_start_x = canvas_x
+        self.rect_select_start_y = canvas_y
+        self.rect_selection_active = True
+
+    def on_mouse_drag(self, event):
+        """Handle mouse drag event for rectangle selection."""
+        if not self.rect_selection_active:
+            return
+
+        canvas_x = self.canvas.canvasx(event.x)
+        canvas_y = self.canvas.canvasy(event.y)
+
+        if self.rect_select_current:
+            self.canvas.coords(
+                self.rect_select_current,
+                self.rect_select_start_x, self.rect_select_start_y,
+                canvas_x, canvas_y
+            )
+
+        x0 = int(min(self.rect_select_start_x, canvas_x))
+        y0 = int(min(self.rect_select_start_y, canvas_y))
+        x1 = int(max(self.rect_select_start_x, canvas_x))
+        y1 = int(max(self.rect_select_start_y, canvas_y))
+        width = x1 - x0
+        height = y1 - y0
+
+        image = PIL.Image.new("RGBA", (width, height), (12, 18, 69, 40))
+        draw = ImageDraw.Draw(image)
+
+        dash_length = 4
+        spacing = 2
+        line_width = 2
+        outline = (16, 22, 69, 150)
+
+        # Top edge
+        for i in range(0, width, dash_length + spacing):
+            draw.line([(i, 0), (min(i + dash_length, width - line_width), 0)], fill=outline, width=line_width)
+        # Bottom edge
+        for i in range(0, width, dash_length + spacing):
+            draw.line([(i, height - line_width), (min(i + dash_length, width - line_width), height - 1)], fill=outline, width=line_width)
+        # Left edge
+        for i in range(0, height, dash_length + spacing):
+            draw.line([(0, i), (0, min(i + dash_length, height - line_width))], fill=outline, width=line_width)
+        # Right edge
+        for i in range(0, height, dash_length + spacing):
+            draw.line([(width - line_width, i), (width - line_width, min(i + dash_length, height - line_width))], fill=outline, width=line_width)
+
+        self.rect_select_current = PIL.ImageTk.PhotoImage(image)
+
+        if hasattr(self, 'rect_image_id') and self.rect_image_id:
+            self.canvas.delete(self.rect_image_id)
+
+        self.rect_image_id = self.canvas.create_image(x0, y0, image=self.rect_select_current, anchor='nw')
+
+    def on_mouse_up(self, event):
+        """Handle mouse button release event."""
+        if not self.rect_selection_active:
+            return
+
+        if self.rect_image_id:
+            self.canvas.delete(self.rect_image_id)
+
+        canvas_x = self.canvas.canvasx(event.x)
+        canvas_y = self.canvas.canvasy(event.y)
+
+        x1 = min(self.rect_select_start_x, canvas_x)
+        y1 = min(self.rect_select_start_y, canvas_y)
+        x2 = max(self.rect_select_start_x, canvas_x)
+        y2 = max(self.rect_select_start_y, canvas_y)
+
+        selected_items = self.canvas.find_overlapping(x1, y1, x2, y2)
+
+        selected_items = [item for item in selected_items if item != self.rect_select_current]
+
+        file_paths_selected = set()
+        for item in selected_items:
+            if item in self.canvas.filenames:
+                file_path = self.canvas.filenames[item]
+                if file_path not in file_paths_selected:
+                    icon_id = self.canvas.file_icon_ids.get(file_path)
+                    bg_id = self.canvas.file_bg_ids.get(file_path)
+                    self.select_file(file_path, bg_id)
+                    file_paths_selected.add(file_path)
+
+        if self.rect_select_current:
+            self.canvas.delete(self.rect_select_current)
+
+        self.rect_select_start_x = None
+        self.rect_select_start_y = None
+        self.rect_select_current = None
+        self.rect_selection_active = False
 
         self.update_process_button_text()
         self.update_remove_button_visibility()
