@@ -27,6 +27,8 @@ class GUI:
         self.master.current_state = AppState.FILE_SELECTION
         self.added_files = []
         self.selected_files = []
+        self.selected_save_paths = set()
+        self.result_file_widgets = {}
         self.last_window_width = self.root.winfo_width()
         self.select_button = None
         self.file_selection_inner_window = None
@@ -229,19 +231,28 @@ class GUI:
 
         self.results_inner_frame.bind("<Configure>", on_inner_frame_configure)
         self.results_canvas.bind("<Configure>", on_canvas_resize)
+        self.results_canvas.bind("<Button-1>", self._on_results_canvas_click)
 
         # ----- Header Row -----
         header = Frame(self.results_inner_frame, bg="#e0e0e0", pady=4)
         header.pack(fill="x")
 
-        Label(header, text="Name", width=25, anchor="w", font=("Arial", 10, "bold"), bg="#e0e0e0").pack(side="left")
-        Label(header, text="Type", width=8, anchor="w", font=("Arial", 10, "bold"), bg="#e0e0e0").pack(side="left")
-        Label(header, text="Size", width=10, anchor="w", font=("Arial", 10, "bold"), bg="#e0e0e0").pack(side="left")
-        Label(header, text="Path", anchor="w", font=("Arial", 10, "bold"), bg="#e0e0e0").pack(side="left", fill="x",
-                                                                                              expand=True)
+        def bind_selection(row_widget, labels, path, bg_color):
+            def on_click(event):
+                self.toggle_file_selection(
+                    file_path=path,
+                    row_widget=row_widget,
+                    selection_set=self.selected_save_paths,
+                    selected_color="#add8e6",
+                    default_color=bg_color
+                )
+
+            row_widget.bind("<Button-1>", on_click)
+            for label in labels:
+                label.bind("<Button-1>", on_click)
 
         # ----- File Rows -----
-        for file_path, _ in self.master.parsed_files:
+        for index, (file_path, _) in enumerate(self.master.parsed_files):
             base_name = os.path.basename(file_path)
             name, ext = os.path.splitext(base_name)
             file_ext = ext[1:].upper() or "N/A"
@@ -253,14 +264,30 @@ class GUI:
 
             truncated_path = textwrap.shorten(file_path, width=80, placeholder="...")
 
-            row = Frame(self.results_inner_frame, bg="white", pady=2)
-            row.pack(fill="x")
+            bg_color = "#ffffff" if index % 2 == 0 else "#f5f5f5"
 
-            Label(row, text=name, width=25, anchor="w", bg="white", font=("Arial", 10)).pack(side="left")
-            Label(row, text=file_ext, width=8, anchor="w", bg="white", font=("Arial", 10)).pack(side="left")
-            Label(row, text=size_str, width=10, anchor="w", bg="white", font=("Arial", 10)).pack(side="left")
-            Label(row, text=truncated_path, anchor="w", bg="white", font=("Arial", 10)).pack(side="left", fill="x",
-                                                                                             expand=True)
+            row = Frame(
+                self.results_inner_frame,
+                bg=bg_color,
+                highlightthickness=0,  # no border by default
+                bd=0,
+                pady=2
+            )
+
+            labels = [
+                Label(row, text=name, width=25, anchor="w", bg=bg_color, font=("Arial", 10)),
+                Label(row, text=file_ext, width=8, anchor="w", bg=bg_color, font=("Arial", 10)),
+                Label(row, text=size_str, width=10, anchor="w", bg=bg_color, font=("Arial", 10)),
+                Label(row, text=truncated_path, anchor="w", bg=bg_color, font=("Arial", 10))
+            ]
+
+            for lbl in labels:
+                lbl.pack(side="left", fill="y" if lbl != labels[-1] else "x", expand=(lbl == labels[-1]))
+
+            bind_selection(row, labels, file_path, bg_color)
+
+            self.result_file_widgets[file_path] = row
+            row.pack(fill="x", expand=True)
 
         # ----- Save Button -----
         bottom_frame = Frame(content_frame, height=50)
@@ -594,6 +621,20 @@ class GUI:
         self.update_process_button_text()
         self.update_remove_button_visibility()
 
+    def _on_results_canvas_click(self, event):
+        y = self.results_canvas.canvasy(event.y)
+
+        clicked_inside_a_row = False
+        for row in self.result_file_widgets.values():
+            row_y = row.winfo_y()
+            row_height = row.winfo_height()
+            if row_y <= y <= row_y + row_height:
+                clicked_inside_a_row = True
+                break
+
+        if not clicked_inside_a_row:
+            self.clear_result_selections()
+
     def remove_drag_drop_label(self):
         if hasattr(self, 'drag_drop_label') and self.drag_drop_label:
             self.drag_drop_label.destroy()
@@ -625,6 +666,28 @@ class GUI:
         self.selected_files.append(self.file_selection_canvas.file_icon_ids[file_path])
         self.log_message(f"Selected file: {os.path.basename(file_path)}")
 
+    def toggle_file_selection(self, file_path, row_widget, selection_set, selected_color="#add8e6",
+                              default_color="#ffffff"):
+        """Generic toggler for selecting/deselecting a file row with dynamic border."""
+        if file_path in selection_set:
+            selection_set.remove(file_path)
+            row_widget.config(
+                bg=default_color,
+                highlightthickness=0,
+            )
+            for widget in row_widget.winfo_children():
+                widget.config(bg=default_color)
+        else:
+            selection_set.add(file_path)
+            row_widget.config(
+                bg=selected_color,
+                highlightbackground="#1E3A8A",  # deep blue
+                highlightcolor="#1E3A8A",
+                highlightthickness=2  # visually distinct border
+            )
+            for widget in row_widget.winfo_children():
+                widget.config(bg=selected_color)
+
     def deselect_file(self, file_path, bg_id):
         self.file_selection_canvas.itemconfig(bg_id, fill="", outline="")
         if self.file_selection_canvas.file_icon_ids[file_path] in self.selected_files:
@@ -632,14 +695,47 @@ class GUI:
         self.log_message(f"Deselected file: {os.path.basename(file_path)}")
 
     def deselect_all_files(self):
-        for file_path in self.added_files:
-            if file_path in self.file_selection_canvas.file_bg_ids:
-                bg_id = self.file_selection_canvas.file_bg_ids[file_path]
-                self.file_selection_canvas.itemconfig(bg_id, fill="", outline="")
+        self.deselect_all(
+            self.added_files,
+            self.file_selection_canvas.file_bg_ids,
+            self.selected_files,
+            lambda i: ""  # canvas fills are already alternating by shape
+        )
         self.log_message(f"Deselected {len(self.selected_files)} files")
         self.selected_files = []
         self.update_process_button_text()
         self.update_remove_button_visibility()
+
+    def clear_result_selections(self):
+        self.deselect_all(
+            # list(self.selected_save_paths),
+            self.result_file_widgets,
+            self.selected_save_paths,
+            lambda i: "#ffffff" if i % 2 == 0 else "#f5f5f5"
+        )
+
+    def deselect_all(self, file_paths, widget_map, selection_set, background_func):
+        for index, file_path in enumerate(file_paths):
+            if file_path not in widget_map:
+                continue
+
+            widget = widget_map[file_path]
+            bg_color = background_func(index)
+
+            # Canvas-based widgets (file selection view)
+            if isinstance(widget, int):
+                self.file_selection_canvas.itemconfig(widget, fill="", outline="")
+                if widget in selection_set:
+                    selection_set.remove(widget)
+
+            # Frame-based widgets (results view)
+            elif isinstance(widget, Frame):
+                widget.config(bg=bg_color, highlightthickness=0)
+                for child in widget.winfo_children():
+                    child.config(bg=bg_color)
+
+                if file_path in selection_set:
+                    selection_set.remove(file_path)
 
     def get_selected_files(self):
         selected_paths = []
@@ -699,6 +795,9 @@ class GUI:
             self.master.process_files(files_to_process)
         else:
             self.handle_error("Processing Error", "Parsing failed. No PDF files were selected.")
+
+    def get_selected_result_paths(self):
+        return list(self.selected_save_paths)
 
     def show_info(self, title, message):
         messagebox.showinfo(title, message, parent=self.root)
