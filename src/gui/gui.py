@@ -147,6 +147,7 @@ class GUI:
         self.file_selection_canvas.file_icon_ids = {}
         self.file_selection_canvas.file_bg_ids = {}
         self.file_selection_canvas.nextcoords = [60, 20]
+
         self.setup_rectangle_selection()
         self.bind_mousewheel_to_canvas()
 
@@ -193,6 +194,8 @@ class GUI:
             pady=5
         )
         self.select_button.pack(side="right", padx=10)
+
+        self.update_page_title("Select Files to Parse")
 
     def create_processing_frame(self):
         # Implementation for processing frame goes here.
@@ -270,7 +273,7 @@ class GUI:
             row = Frame(
                 self.results_inner_frame,
                 bg=bg_color,
-                highlightthickness=0,  # no border by default
+                highlightthickness=0, 
                 bd=0,
                 pady=2
             )
@@ -414,6 +417,7 @@ class GUI:
         if not hasattr(self, 'file_selection_canvas') or not self.file_selection_canvas:
             return 7
 
+
         canvas_width = self.file_selection_canvas.winfo_width()
         if canvas_width <= 1:
             canvas_width = self.root.winfo_width() - 40
@@ -509,22 +513,34 @@ class GUI:
         self.file_selection_canvas.bind("<B1-Motion>", self.on_mouse_drag)
         self.file_selection_canvas.bind("<ButtonRelease-1>", self.on_mouse_up)
 
+    def setup_rectangle_selection(self):
+        """Set up variables and bindings for rectangle selection."""
+        self.rect_select_start_x = None
+        self.rect_select_start_y = None
+        self.rect_select_current = None
+        self.rect_selection_active = False
+
+        # Bind events for rectangle selection
+        self.canvas.bind("<ButtonPress-1>", self.on_mouse_down)
+        self.canvas.bind("<B1-Motion>", self.on_mouse_drag)
+        self.canvas.bind("<ButtonRelease-1>", self.on_mouse_up)
+
     def on_mouse_down(self, event):
         """Handle mouse button press event."""
         if not self.added_files:
             return
 
-        canvas_x = self.file_selection_canvas.canvasx(event.x)
-        canvas_y = self.file_selection_canvas.canvasy(event.y)
+        canvas_x = self.canvas.canvasx(event.x)
+        canvas_y = self.canvas.canvasy(event.y)
 
-        clicked_items = self.file_selection_canvas.find_overlapping(canvas_x - 1, canvas_y - 1, canvas_x + 1, canvas_y + 1)
+        clicked_items = self.canvas.find_overlapping(canvas_x - 1, canvas_y - 1, canvas_x + 1, canvas_y + 1)
 
         if clicked_items:
             clicked_id = clicked_items[0]
-            if clicked_id in self.file_selection_canvas.filenames:
-                file_path = self.file_selection_canvas.filenames[clicked_id]
-                icon_id = self.file_selection_canvas.file_icon_ids.get(file_path)
-                bg_id = self.file_selection_canvas.file_bg_ids.get(file_path)
+            if clicked_id in self.canvas.filenames:
+                file_path = self.canvas.filenames[clicked_id]
+                icon_id = self.canvas.file_icon_ids.get(file_path)
+                bg_id = self.canvas.file_bg_ids.get(file_path)
                 if icon_id in self.selected_files:
                     self.deselect_file(file_path, bg_id)
                 else:
@@ -544,11 +560,11 @@ class GUI:
         if not self.rect_selection_active:
             return
 
-        canvas_x = self.file_selection_canvas.canvasx(event.x)
-        canvas_y = self.file_selection_canvas.canvasy(event.y)
+        canvas_x = self.canvas.canvasx(event.x)
+        canvas_y = self.canvas.canvasy(event.y)
 
         if self.rect_select_current:
-            self.file_selection_canvas.coords(
+            self.canvas.coords(
                 self.rect_select_current,
                 self.rect_select_start_x, self.rect_select_start_y,
                 canvas_x, canvas_y
@@ -585,9 +601,9 @@ class GUI:
         self.rect_select_current = PIL.ImageTk.PhotoImage(image)
 
         if hasattr(self, 'rect_image_id') and self.rect_image_id:
-            self.file_selection_canvas.delete(self.rect_image_id)
+            self.canvas.delete(self.rect_image_id)
 
-        self.rect_image_id = self.file_selection_canvas.create_image(x0, y0, image=self.rect_select_current, anchor='nw')
+        self.rect_image_id = self.canvas.create_image(x0, y0, image=self.rect_select_current, anchor='nw')
 
     def on_mouse_up(self, event):
         """Handle mouse button release event."""
@@ -595,10 +611,10 @@ class GUI:
             return
 
         if self.rect_image_id:
-            self.file_selection_canvas.delete(self.rect_image_id)
+            self.canvas.delete(self.rect_image_id)
 
-        canvas_x = self.file_selection_canvas.canvasx(event.x)
-        canvas_y = self.file_selection_canvas.canvasy(event.y)
+        canvas_x = self.canvas.canvasx(event.x)
+        canvas_y = self.canvas.canvasy(event.y)
 
         x1 = min(self.rect_select_start_x, canvas_x)
         y1 = min(self.rect_select_start_y, canvas_y)
@@ -700,9 +716,9 @@ class GUI:
             self.update_save_button_text()
             row_widget.config(
                 bg=selected_color,
-                highlightbackground="#1E3A8A",  # deep blue
+                highlightbackground="#1E3A8A", 
                 highlightcolor="#1E3A8A",
-                highlightthickness=2  # visually distinct border
+                highlightthickness=1
             )
             for widget in row_widget.winfo_children():
                 widget.config(bg=selected_color)
@@ -730,7 +746,6 @@ class GUI:
 
     def clear_result_selections(self):
         self.deselect_all(
-            # list(self.selected_save_paths),
             self.result_file_widgets,
             self.selected_save_paths,
             lambda i: "#ffffff" if i % 2 == 0 else "#f5f5f5"
@@ -828,5 +843,5 @@ class GUI:
 
     def handle_results(self):
         # Implementation to handle and display OCR results
-
+        
         pass
