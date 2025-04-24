@@ -1,6 +1,10 @@
 # src/gui/app_window.py
 import os
-from tkinter import filedialog, scrolledtext, messagebox
+import textwrap
+from tkinter import (filedialog, messagebox)
+
+import PIL
+from PIL import Image, ImageDraw, ImageTk
 
 try:
     from Tkinter import *
@@ -8,58 +12,50 @@ except ImportError:
     from tkinter import *
 
 from tkinterdnd2 import TkinterDnD, DND_FILES
-from src.utils.states import AppState
+from src.utils.globals import AppState, FILE_PIC_BASE_64, SDP_LOGO
 
-FILE_PIC_BASE_64 = ('iVBORw0KGgoAAAANSUhEUgAAADAAAAAwCAMAAABg3Am1AAAAk1BMVEVHcEzJz9j/Vi/'
-                    'jMQbo6+7FytL/VS/ovrbq6+/e4Obs9fvhZUfbLwnYy835UizR1N3/VjDM0tn9XzzHzdb'
-                    '/79Dr7PD/VjDu7/PCyND8clO/xc7/WTP/UCjs7vL/SiL/RBrFy9T29/v//v7/8/D/ppP'
-                    '/va709Pn/moP/3NX/ZEH/Uyz/xLf/0Mb/6eT/hGj/eFpHcEwgl6rUAAAAMXRSTlMA9NT7'
-                    'TULPA/77+e9KZ/glnOze4f////////////////////////////////////8A2zK2aQAAA'
-                    'clJREFUSMfN1e1ugjAUBuBuTkCdClsoaEthFGwpftz/3e0UxLFRCvuz7E1MQzhPzkEKIAR'
-                    'x0TZJvPBnVu9LOGWIi/ZhNKyPVllgFi56+RjWAzhmT0YxDkbEOIjNwgLMwgaMwjaSUdg7G'
-                    'IQVmKaa6DAU9g7H4VRTIw16WO50FxDv+6kOevd9JV69PFqMgTDxeolmgH68058Cdx5wvzp'
-                    'sTzPAtuvgotfNOpwE681rK6B+MQOE682iEbp+LmgF1ANIJqMBCISe1W63O8wIlClHA4IJp'
-                    'k1YqkNVszJFaXOcsvYslJE7aEPotYQIWIuiEAdKsCh0bupR8h2wIuec52dWw5rngpJLriP'
-                    'YOKgoLfJDyQmpyvzGLmdcVVVXYAQsFQ1QlPASQArDKwuQZ5lLWnO4PiYlk3pGbhtJSllW6'
-                    'QNceFmX9ZWOdYBpUsowqzl+jMQYo3gc3CghBEDVXbQ+xpZrAABr+7cWFHPJeuV90PzUQVT'
-                    '6dioB96/Qk4urGgJfN+22Rm+LNFvjvivuW4MQXz8PvuO8zdl8b47j6+fB/c1LoH3k5gP3/'
-                    '77I0NKLksiaJPKWfZAFq4kEWR/s4+xoT5zF+/4naBvEEwnub8pP7R+maUCbATwAAAAASUVO'
-                    'RK5CYII=')
 
 class GUI:
     """Class to represent the GUI application window."""
     def __init__(self, master):
         self.master = master
         self.root = TkinterDnD.Tk()
-        self.root.minsize(405, 405)
-        self.root.geometry("600x500")
+        self.root.minsize(810, 648)
+        self.root.geometry("810x648")
         self.root.title("R&D Labs Directory Parser")
         self.state = AppState.FILE_SELECTION
         self.master.current_state = AppState.FILE_SELECTION
         self.added_files = []
         self.selected_files = []
+        self.selected_save_paths = set()
+        self.result_file_widgets = {}
         self.last_window_width = None
         self.select_button = None
-        self.inner_window = None
+        self.save_button = None
+        self.file_selection_inner_window = None
+        self.results_canvas_window = None
         self.scrollbar = None
-        self.remove_button = None
-        self.canvas = None
         self.remove_button_container = None
-        self.inner_frame = None
+        self.remove_button = None
+        self.file_selection_canvas = None
+        self.results_canvas = None
+        self.rect_select_start_x = None
+        self.rect_select_start_y = None
+        self.rect_select_current = None
+        self.rect_selection_active = False
+        self.file_selection_inner_frame = None
+        self.results_inner_frame = None
+        self.page_title_label = None
+        self.logo_label = None
         self.drag_drop_label = None
         self.status_label = None
         self.process_button = None
         self.main_frame = None
-
+        self.sdp_logo = PhotoImage(data=SDP_LOGO)
         self.file_icon = PhotoImage(data=FILE_PIC_BASE_64)
-
         self.create_main_frame()
         self.generate_frame()
         self.bind_window_resize()
-
-    def create_main_frame(self):
-        self.main_frame = Frame(self.root)
-        self.main_frame.pack(expand=True, fill="both")
 
     def generate_frame(self):
         if self.main_frame:
@@ -84,19 +80,31 @@ class GUI:
         self.log_message(f"State changed from {old_state} to {new_state}", "info")
         self.generate_frame()
 
-    def create_file_selection_frame(self):
-        frame = Frame(self.main_frame)
-        frame.pack(expand=True, fill="both")
-        frame.grid_rowconfigure(1, weight=1)
-        frame.grid_columnconfigure(0, weight=1)
+    def create_main_frame(self):
+        self.main_frame = Frame(self.root)
+        self.main_frame.pack(expand=True, fill="both")
 
-        top_frame = Frame(frame, height=30)
-        top_frame.grid(row=0, column=0, padx=5, pady=5, sticky="ew")
-        top_frame.grid_columnconfigure(0, weight=1)
+        top_frame = Frame(self.main_frame, height=60)
+        top_frame.pack(side="top", fill="x", anchor="n", pady=(5, 0))
         top_frame.pack_propagate(False)
 
+        top_frame.columnconfigure(0, weight=0, minsize=150)
+        top_frame.columnconfigure(1, weight=1)
+        top_frame.columnconfigure(2, weight=0, minsize=205)
+
+        self.logo_label = Label(top_frame, image=self.sdp_logo)
+        self.logo_label.grid(row=0, column=0, padx=10, pady=5, sticky="w")
+
+        title_frame = Frame(top_frame)
+        title_frame.grid(row=0, column=1, sticky="nsew")
+        title_frame.columnconfigure(0, weight=1)
+        title_frame.rowconfigure(0, weight=1)
+
+        self.page_title_label = Label(title_frame, text="Page Title", font=("Arial", 14, "bold"))
+        self.page_title_label.grid(row=0, column=0, sticky="nsew")
+
         self.remove_button_container = Frame(top_frame)
-        self.remove_button_container.pack(side="right", padx=5)
+        self.remove_button_container.grid(row=0, column=2, padx=(0, 28), sticky="se")
         self.remove_button = Button(
             self.remove_button_container,
             text="X",
@@ -105,40 +113,54 @@ class GUI:
             bg="red",
             width=3,
             padx=4,
-            pady=2
+            pady=5
         )
 
-        main_frame = Frame(frame)
-        main_frame.grid(row=1, column=0, padx=5, pady=5, sticky="news")
-        main_frame.grid_rowconfigure(0, weight=1)
-        main_frame.grid_columnconfigure(0, weight=1)
+    def create_file_selection_frame(self):
+        self.update_page_title("Select Files to Parse")
+
+        content_frame = Frame(self.main_frame)
+        content_frame.pack(expand=True, fill="both")
+        content_frame.grid_rowconfigure(1, weight=1)
+        content_frame.grid_columnconfigure(0, weight=1)
+
+        file_display_window = Frame(content_frame)
+        file_display_window.grid(row=1, column=0, padx=5, pady=5, sticky="news")
+        file_display_window.grid_rowconfigure(0, weight=1)
+        file_display_window.grid_columnconfigure(0, weight=1)
 
         canvas_bg = "#f7f7f7" if not self.added_files else "white"
-        self.canvas = Canvas(main_frame, bg=canvas_bg, relief="sunken", bd=1)
-        self.canvas.grid(row=0, column=0, padx=5, pady=5, sticky="news")
-        self.scrollbar = Scrollbar(main_frame, orient="vertical", command=self.canvas.yview)
+        self.file_selection_canvas = Canvas(file_display_window, bg=canvas_bg, relief="sunken", bd=1)
+        self.file_selection_canvas.grid(row=0, column=0, padx=5, pady=5, sticky="news")
+        self.scrollbar = Scrollbar(file_display_window, orient="vertical", command=self.file_selection_canvas.yview)
         self.scrollbar.grid(row=0, column=1, sticky="ns")
-        self.canvas.configure(yscrollcommand=self.scrollbar.set)
+        self.file_selection_canvas.configure(yscrollcommand=self.scrollbar.set)
 
-        self.inner_frame = Frame(self.canvas, bg="lightgray")
-        self.inner_window = self.canvas.create_window((0, 0), window=self.inner_frame, anchor="nw")
+        self.file_selection_inner_frame = Frame(self.file_selection_canvas, bg="lightgray")
+        self.file_selection_inner_window = self.file_selection_canvas.create_window((0, 0),
+                                                                                    window=self.file_selection_inner_frame,
+                                                                                    anchor="nw")
 
-        self.canvas.drop_target_register(DND_FILES)
-        self.canvas.dnd_bind("<<Drop>>", self.drop_file)
-        self.canvas.filenames = {}
-        self.canvas.file_icon_ids = {}
-        self.canvas.file_bg_ids = {}
-        self.canvas.nextcoords = [60, 20]
-        self.canvas.bind("<Button-1>", self.handle_canvas_click)
+        self.file_selection_canvas.drop_target_register(DND_FILES)
+        self.file_selection_canvas.dnd_bind("<<Drop>>", self.drop_file)
+        self.file_selection_canvas.filenames = {}
+        self.file_selection_canvas.file_icon_ids = {}
+        self.file_selection_canvas.file_bg_ids = {}
+        self.file_selection_canvas.nextcoords = [60, 20]
+
+        self.setup_rectangle_selection()
         self.bind_mousewheel_to_canvas()
 
         if not self.added_files:
-            self.drag_drop_label = Label(self.canvas, text="Drag & Drop PDF Files Here",
-                                         font=("Arial", 10), fg="#555555", bg=canvas_bg)
+            self.drag_drop_label = Label(self.file_selection_canvas,
+                                         text="Drag & Drop PDF Files Here",
+                                         font=("Arial", 10),
+                                         fg="#555555",
+                                         bg=canvas_bg)
             self.drag_drop_label.pack(expand=True, fill="both")
 
-        bottom_frame = Frame(frame, height=40)
-        bottom_frame.grid(row=2, column=0, padx=5, pady=10, sticky="ew")
+        bottom_frame = Frame(content_frame, height=50)
+        bottom_frame.grid(row=2, column=0, padx=(0, 10), pady=10, sticky="ew")
         bottom_frame.grid_columnconfigure(0, weight=1)
         bottom_frame.grid_propagate(False)
 
@@ -146,64 +168,165 @@ class GUI:
         self.status_label.grid(row=0, column=0, padx=10, pady=5, sticky="w")
 
         button_frame = Frame(bottom_frame)
-        button_frame.grid(row=0, column=1, padx=10, pady=5, sticky="e")
+        button_frame.grid(row=0, column=1, padx=10, sticky="e")
 
         self.process_button = Button(
             button_frame,
             text="Parse All Files",
-            command=self.process_files
+            command=self.process_files,
+            font=("Arial", 10, "bold"),
+            bg="#3a4cde",
+            fg="white",
+            padx=10,
+            pady=5
         )
         self.process_button.pack(side="right", padx=10)
         self.update_process_button_text()
 
         self.select_button = Button(button_frame, text="Select Files", command=self.add_files)
+        self.select_button = Button(
+            button_frame,
+            text="Select Files",
+            command=self.add_files,
+            font=("Arial", 10, "bold"),
+            bg="#c3c3c7",
+            padx=10,
+            pady=5
+        )
         self.select_button.pack(side="right", padx=10)
+
+        self.update_page_title("Select Files to Parse")
 
     def create_processing_frame(self):
         # Implementation for processing frame goes here.
+
+        self.update_page_title("Processing...")
+
         pass
 
     def create_results_frame(self):
-        frame = Frame(self.main_frame)
-        frame.pack(expand=True, fill="both")
+        self.update_page_title("OCR Results")
 
-        main_frame = Frame(frame)
-        main_frame.grid(row=1, column=0, padx=5, pady=5, sticky="news")
-        main_frame.grid_rowconfigure(0, weight=1)
-        main_frame.grid_columnconfigure(0, weight=1)
+        content_frame = Frame(self.main_frame)
+        content_frame.pack(expand=True, fill="both")
+        content_frame.grid_rowconfigure(1, weight=1)
+        content_frame.grid_columnconfigure(0, weight=1)
 
-        frame.grid_columnconfigure(0, weight=1)
-        frame.grid_rowconfigure(0, weight=1)
+        results_display_window = Frame(content_frame)
+        results_display_window.grid(row=1, column=0, sticky="news", padx=5, pady=5)
+        results_display_window.grid_rowconfigure(0, weight=1)
+        results_display_window.grid_columnconfigure(0, weight=1)
 
-        self.inner_frame = Frame(frame)
-        self.inner_frame.grid(row=0, column=0, padx=10, pady=10, sticky="news")
+        self.results_canvas = Canvas(results_display_window, bg="white", relief="sunken", bd=1)
+        self.results_canvas.grid(row=0, column=0, sticky="news", padx=5, pady=5)
 
-        label = Label(self.inner_frame, text="OCR Results", font=("Arial", 14, "bold"))
-        label.pack(pady=10)
+        results_scrollbar = Scrollbar(results_display_window, orient="vertical", command=self.results_canvas.yview)
+        results_scrollbar.grid(row=0, column=1, sticky="ns")
+        self.results_canvas.configure(yscrollcommand=results_scrollbar.set)
 
-        text_area = scrolledtext.ScrolledText(self.inner_frame, wrap=WORD, height=15)
-        text_area.pack(expand=True, fill="both", padx=10, pady=5)
+        self.results_inner_frame = Frame(self.results_canvas, bg="white")
+        self.results_canvas_window = self.results_canvas.create_window((0, 0), window=self.results_inner_frame, anchor="nw")
 
-        # REPLACE WITH ACTUAL RESULTS DISPLAY AND HANDLING
-        if self.master.parsed_files:
-            # Display the extracted text from the first parsed file
-            text_area.insert(END, self.master.parsed_files[0][1])
-        text_area.config(state="disabled")
+        def on_inner_frame_configure(event):
+            self.results_canvas.configure(scrollregion=self.results_canvas.bbox("all"))
 
-        download_button = Button(
-            self.inner_frame,
+        def on_canvas_resize(event):
+            self.results_canvas.itemconfig(self.results_canvas_window, width=event.width)
+
+        self.results_inner_frame.bind("<Configure>", on_inner_frame_configure)
+        self.results_canvas.bind("<Configure>", on_canvas_resize)
+        self.results_canvas.bind("<Button-1>", self._on_results_canvas_click)
+
+        # ----- Header Row -----
+        header = Frame(self.results_inner_frame, bg="#e0e0e0", pady=4)
+        header.pack(fill="x")
+
+        def bind_selection(row_widget, labels, path, bg_color):
+            def on_click(event):
+                self.toggle_file_selection(
+                    file_path=path,
+                    row_widget=row_widget,
+                    selection_set=self.selected_save_paths,
+                    selected_color="#add8e6",
+                    default_color=bg_color
+                )
+
+            row_widget.bind("<Button-1>", on_click)
+            for label in labels:
+                label.bind("<Button-1>", on_click)
+
+        # ----- File Rows -----
+        for index, (file_path, _) in enumerate(self.master.parsed_files):
+            base_name = os.path.basename(file_path)
+            name, ext = os.path.splitext(base_name)
+            file_ext = ext[1:].upper() or "N/A"
+            try:
+                size_bytes = os.path.getsize(file_path)
+                size_str = f"{size_bytes / 1024:.1f} KB" if size_bytes < 1_000_000 else f"{size_bytes / 1_048_576:.2f} MB"
+            except FileNotFoundError:
+                size_str = "N/A"
+
+            truncated_path = textwrap.shorten(file_path, width=80, placeholder="...")
+
+            bg_color = "#ffffff" if index % 2 == 0 else "#f5f5f5"
+
+            row = Frame(
+                self.results_inner_frame,
+                bg=bg_color,
+                highlightthickness=0, 
+                bd=0,
+                pady=2
+            )
+
+            labels = [
+                Label(row, text=name, width=25, anchor="w", bg=bg_color, font=("Arial", 10)),
+                Label(row, text=file_ext, width=8, anchor="w", bg=bg_color, font=("Arial", 10)),
+                Label(row, text=size_str, width=10, anchor="w", bg=bg_color, font=("Arial", 10)),
+                Label(row, text=truncated_path, anchor="w", bg=bg_color, font=("Arial", 10))
+            ]
+
+            for lbl in labels:
+                lbl.pack(side="left", fill="y" if lbl != labels[-1] else "x", expand=(lbl == labels[-1]))
+
+            bind_selection(row, labels, file_path, bg_color)
+
+            self.result_file_widgets[file_path] = row
+            row.pack(fill="x", expand=True)
+
+        # ----- Save Button -----
+        bottom_frame = Frame(content_frame, height=50)
+        bottom_frame.grid(row=2, column=0, sticky="ew", padx=(0, 20), pady=(10, 10))
+        bottom_frame.grid_columnconfigure(0, weight=1)
+        bottom_frame.grid_propagate(False)
+
+        status_placeholder = Label(bottom_frame, text="")  # You could repurpose this for summary or status
+        status_placeholder.grid(row=0, column=0, padx=10, sticky="w")
+
+        self.save_button = Button(
+            bottom_frame,
             text="Save Parsed Files",
-            command=self.master.save_parsed_files
+            command=self.master.save_parsed_files,
+            font=("Arial", 10, "bold"),
+            bg="#4CAF50",
+            fg="white",
+            padx=10,
+            pady=5
         )
-        download_button.pack(pady=10)
+        self.save_button.grid(row=0, column=1, padx=10, sticky="e")
+        self.update_save_button_text()
 
     def create_complete_frame(self):
         # Implementation for complete frame goes here.
+
         pass
 
     def create_error_frame(self):
         # Implementation for error frame goes here.
+
         pass
+
+    def update_page_title(self, new_title):
+        self.page_title_label.config(text=new_title)
 
     def drop_file(self, event):
         files = self.root.splitlist(event.data)
@@ -275,25 +398,27 @@ class GUI:
             current_width = self.root.winfo_width()
             if abs(current_width - self.last_window_width) > 10:
                 self.last_window_width = current_width
-                if current_width > 100:
+                if current_width > 100 and hasattr(self, 'file_selection_canvas') and self.file_selection_canvas:
                     self.arrange_files()
+
 
     def bind_mousewheel_to_canvas(self):
         def _on_mousewheel(event):
             if event.num == 4 or event.delta > 0:
-                self.canvas.yview_scroll(-1, "units")
+                self.file_selection_canvas.yview_scroll(-1, "units")
             elif event.num == 5 or event.delta < 0:
-                self.canvas.yview_scroll(1, "units")
+                self.file_selection_canvas.yview_scroll(1, "units")
 
-        self.canvas.bind("<MouseWheel>", _on_mousewheel)
-        self.canvas.bind("<Button-4>", _on_mousewheel)
-        self.canvas.bind("<Button-5>", _on_mousewheel)
+        self.file_selection_canvas.bind("<MouseWheel>", _on_mousewheel)
+        self.file_selection_canvas.bind("<Button-4>", _on_mousewheel)
+        self.file_selection_canvas.bind("<Button-5>", _on_mousewheel)
 
     def calculate_grid_layout(self):
-        if not hasattr(self, 'canvas') or not self.canvas.winfo_exists():
-            return 5
+        if not hasattr(self, 'file_selection_canvas') or not self.file_selection_canvas:
+            return 7
 
-        canvas_width = self.canvas.winfo_width()
+
+        canvas_width = self.file_selection_canvas.winfo_width()
         if canvas_width <= 1:
             canvas_width = self.root.winfo_width() - 40
 
@@ -302,21 +427,24 @@ class GUI:
         return icons_per_row
 
     def arrange_files(self):
-        self.canvas.delete("all")
-        self.canvas.filenames = {}
-        self.canvas.file_icon_ids = {}
-        self.canvas.file_bg_ids = {}
+        if not hasattr(self, 'file_selection_canvas') or not self.file_selection_canvas:
+            return
+
+        self.file_selection_canvas.delete("all")
+        self.file_selection_canvas.filenames = {}
+        self.file_selection_canvas.file_icon_ids = {}
+        self.file_selection_canvas.file_bg_ids = {}
 
         if not self.added_files:
-            self.canvas.config(bg="#f7f7f7")
+            self.file_selection_canvas.config(bg="#f7f7f7")
             if hasattr(self, 'drag_drop_label') and self.drag_drop_label:
                 self.drag_drop_label.destroy()
-            self.drag_drop_label = Label(self.canvas, text="Drag & Drop PDF Files Here",
+            self.drag_drop_label = Label(self.file_selection_canvas, text="Drag & Drop PDF Files Here",
                                          font=("Arial", 10), fg="#555555", bg="#f7f7f7")
             self.drag_drop_label.place(relx=0.5, rely=0.5, anchor=CENTER)
             return
 
-        self.canvas.config(bg="white")
+        self.file_selection_canvas.config(bg="white")
         if hasattr(self, 'drag_drop_label') and self.drag_drop_label:
             self.drag_drop_label.destroy()
             self.drag_drop_label = None
@@ -328,18 +456,18 @@ class GUI:
         for file_path in self.added_files:
             x = margin_x + (col * icon_width) + (icon_width / 2)
             y = margin_y + (row * icon_height)
-            bg_rect = self.canvas.create_rectangle(
+            bg_rect = self.file_selection_canvas.create_rectangle(
                 x - 40, y - 10,
                 x + 40, y + 90,
                 fill="", outline="", tags=('file_bg',)
             )
-            icon_id = self.canvas.create_image(
+            icon_id = self.file_selection_canvas.create_image(
                 x, y,
                 image=self.file_icon,
                 anchor='n',
                 tags=('file',)
             )
-            text_id = self.canvas.create_text(
+            text_id = self.file_selection_canvas.create_text(
                 x, y + 50,
                 text=os.path.basename(file_path),
                 anchor='n',
@@ -347,18 +475,18 @@ class GUI:
                 width=90
             )
 
-            self.canvas.filenames[icon_id] = file_path
-            self.canvas.filenames[text_id] = file_path
-            self.canvas.filenames[bg_rect] = file_path
+            self.file_selection_canvas.filenames[icon_id] = file_path
+            self.file_selection_canvas.filenames[text_id] = file_path
+            self.file_selection_canvas.filenames[bg_rect] = file_path
 
-            self.canvas.file_icon_ids[file_path] = icon_id
-            self.canvas.file_bg_ids[file_path] = bg_rect
+            self.file_selection_canvas.file_icon_ids[file_path] = icon_id
+            self.file_selection_canvas.file_bg_ids[file_path] = bg_rect
 
             if icon_id in self.selected_files or (
-                    file_path in self.canvas.file_icon_ids and
-                    self.canvas.file_icon_ids[file_path] in self.selected_files
+                    file_path in self.file_selection_canvas.file_icon_ids and
+                    self.file_selection_canvas.file_icon_ids[file_path] in self.selected_files
             ):
-                self.canvas.itemconfig(bg_rect, fill="#add8e6", outline="#4682b4")
+                self.file_selection_canvas.itemconfig(bg_rect, fill="#add8e6", outline="#4682b4")
                 if icon_id not in self.selected_files:
                     self.selected_files.append(icon_id)
 
@@ -367,40 +495,176 @@ class GUI:
                 col = 0
                 row += 1
 
+
         total_rows = (len(self.added_files) + icons_per_row - 1) // icons_per_row
         canvas_height = margin_y + (total_rows * icon_height) + margin_y
         canvas_width = margin_x + (min(len(self.added_files), icons_per_row) * icon_width)
-        self.canvas.config(scrollregion=(0, 0, canvas_width, canvas_height))
+        self.file_selection_canvas.config(scrollregion=(0, 0, canvas_width, canvas_height))
 
-    def handle_canvas_click(self, event):
-        if self.status_label:
-            self.status_label.config(text="")
+    def setup_rectangle_selection(self):
+        """Set up variables and bindings for rectangle selection."""
+        self.rect_select_start_x = None
+        self.rect_select_start_y = None
+        self.rect_select_current = None
+        self.rect_selection_active = False
 
-        clicked_items = self.canvas.find_withtag("current")
-        if not clicked_items:
-            self.deselect_all_files()
+        # Bind events for rectangle selection
+        self.file_selection_canvas.bind("<ButtonPress-1>", self.on_mouse_down)
+        self.file_selection_canvas.bind("<B1-Motion>", self.on_mouse_drag)
+        self.file_selection_canvas.bind("<ButtonRelease-1>", self.on_mouse_up)
+
+    def setup_rectangle_selection(self):
+        """Set up variables and bindings for rectangle selection."""
+        self.rect_select_start_x = None
+        self.rect_select_start_y = None
+        self.rect_select_current = None
+        self.rect_selection_active = False
+
+        # Bind events for rectangle selection
+        self.file_selection_canvas.bind("<ButtonPress-1>", self.on_mouse_down)
+        self.file_selection_canvas.bind("<B1-Motion>", self.on_mouse_drag)
+        self.file_selection_canvas.bind("<ButtonRelease-1>", self.on_mouse_up)
+
+    def on_mouse_down(self, event):
+        """Handle mouse button press event."""
+        if not self.added_files:
             return
 
-        clicked_id = clicked_items[0]
-        if clicked_id in self.canvas.filenames:
-            file_path = self.canvas.filenames[clicked_id]
-            icon_id = self.canvas.file_icon_ids.get(file_path)
-            bg_id = self.canvas.file_bg_ids.get(file_path)
-            if icon_id in self.selected_files:
-                self.deselect_file(file_path, bg_id)
-            else:
-                self.select_file(file_path, bg_id)
-        else:
-            self.deselect_all_files()
+        canvas_x = self.canvas.canvasx(event.x)
+        canvas_y = self.canvas.canvasy(event.y)
+
+        clicked_items = self.canvas.find_overlapping(canvas_x - 1, canvas_y - 1, canvas_x + 1, canvas_y + 1)
+
+        if clicked_items:
+            clicked_id = clicked_items[0]
+            if clicked_id in self.canvas.filenames:
+                file_path = self.canvas.filenames[clicked_id]
+                icon_id = self.canvas.file_icon_ids.get(file_path)
+                bg_id = self.canvas.file_bg_ids.get(file_path)
+                if icon_id in self.selected_files:
+                    self.deselect_file(file_path, bg_id)
+                else:
+                    self.select_file(file_path, bg_id)
+
+                self.update_process_button_text()
+                self.update_remove_button_visibility()
+                return
+
+        self.deselect_all_files()
+        self.rect_select_start_x = canvas_x
+        self.rect_select_start_y = canvas_y
+        self.rect_selection_active = True
+
+    def on_mouse_drag(self, event):
+        """Handle mouse drag event for rectangle selection."""
+        if not self.rect_selection_active:
+            return
+
+        canvas_x = self.canvas.canvasx(event.x)
+        canvas_y = self.canvas.canvasy(event.y)
+
+        if self.rect_select_current:
+            self.canvas.coords(
+                self.rect_select_current,
+                self.rect_select_start_x, self.rect_select_start_y,
+                canvas_x, canvas_y
+            )
+
+        x0 = int(min(self.rect_select_start_x, canvas_x))
+        y0 = int(min(self.rect_select_start_y, canvas_y))
+        x1 = int(max(self.rect_select_start_x, canvas_x))
+        y1 = int(max(self.rect_select_start_y, canvas_y))
+        width = x1 - x0
+        height = y1 - y0
+
+        image = PIL.Image.new("RGBA", (width, height), (12, 18, 69, 40))
+        draw = ImageDraw.Draw(image)
+
+        dash_length = 4
+        spacing = 2
+        line_width = 2
+        outline = (16, 22, 69, 150)
+
+        # Top edge
+        for i in range(0, width, dash_length + spacing):
+            draw.line([(i, 0), (min(i + dash_length, width - line_width), 0)], fill=outline, width=line_width)
+        # Bottom edge
+        for i in range(0, width, dash_length + spacing):
+            draw.line([(i, height - line_width), (min(i + dash_length, width - line_width), height - 1)], fill=outline, width=line_width)
+        # Left edge
+        for i in range(0, height, dash_length + spacing):
+            draw.line([(0, i), (0, min(i + dash_length, height - line_width))], fill=outline, width=line_width)
+        # Right edge
+        for i in range(0, height, dash_length + spacing):
+            draw.line([(width - line_width, i), (width - line_width, min(i + dash_length, height - line_width))], fill=outline, width=line_width)
+
+        self.rect_select_current = PIL.ImageTk.PhotoImage(image)
+
+        if hasattr(self, 'rect_image_id') and self.rect_image_id:
+            self.canvas.delete(self.rect_image_id)
+
+        self.rect_image_id = self.canvas.create_image(x0, y0, image=self.rect_select_current, anchor='nw')
+
+    def on_mouse_up(self, event):
+        """Handle mouse button release event."""
+        if not self.rect_selection_active:
+            return
+
+        if self.rect_image_id:
+            self.canvas.delete(self.rect_image_id)
+
+        canvas_x = self.canvas.canvasx(event.x)
+        canvas_y = self.canvas.canvasy(event.y)
+
+        x1 = min(self.rect_select_start_x, canvas_x)
+        y1 = min(self.rect_select_start_y, canvas_y)
+        x2 = max(self.rect_select_start_x, canvas_x)
+        y2 = max(self.rect_select_start_y, canvas_y)
+
+        selected_items = self.file_selection_canvas.find_overlapping(x1, y1, x2, y2)
+
+        selected_items = [item for item in selected_items if item != self.rect_select_current]
+
+        file_paths_selected = set()
+        for item in selected_items:
+            if item in self.file_selection_canvas.filenames:
+                file_path = self.file_selection_canvas.filenames[item]
+                if file_path not in file_paths_selected:
+                    icon_id = self.file_selection_canvas.file_icon_ids.get(file_path)
+                    bg_id = self.file_selection_canvas.file_bg_ids.get(file_path)
+                    self.select_file(file_path, bg_id)
+                    file_paths_selected.add(file_path)
+
+        if self.rect_select_current:
+            self.file_selection_canvas.delete(self.rect_select_current)
+
+        self.rect_select_start_x = None
+        self.rect_select_start_y = None
+        self.rect_select_current = None
+        self.rect_selection_active = False
 
         self.update_process_button_text()
         self.update_remove_button_visibility()
+
+    def _on_results_canvas_click(self, event):
+        y = self.results_canvas.canvasy(event.y)
+
+        clicked_inside_a_row = False
+        for row in self.result_file_widgets.values():
+            row_y = row.winfo_y()
+            row_height = row.winfo_height()
+            if row_y <= y <= row_y + row_height:
+                clicked_inside_a_row = True
+                break
+
+        if not clicked_inside_a_row:
+            self.clear_result_selections()
 
     def remove_drag_drop_label(self):
         if hasattr(self, 'drag_drop_label') and self.drag_drop_label:
             self.drag_drop_label.destroy()
             self.drag_drop_label = None
-            self.canvas.config(bg="white")
+            self.file_selection_canvas.config(bg="white")
 
     def update_process_button_text(self):
         if not hasattr(self, 'process_button'):
@@ -416,6 +680,15 @@ class GUI:
         else:
             self.process_button.config(text="Parse All Files")
 
+    def update_save_button_text(self):
+        if not self.save_button:
+            return
+        count = len(self.selected_save_paths)
+        if count == 0:
+            self.save_button.config(text="Save All Files")
+        else:
+            self.save_button.config(text=f"Save {count} File{'s' if count > 1 else ''}")
+
     def update_remove_button_visibility(self):
         if self.selected_files:
             self.remove_button.pack(side="right", padx=2, pady=2)
@@ -423,31 +696,91 @@ class GUI:
             self.remove_button.pack_forget()
 
     def select_file(self, file_path, bg_id):
-        self.canvas.itemconfig(bg_id, fill="#add8e6", outline="#4682b4")
-        self.selected_files.append(self.canvas.file_icon_ids[file_path])
+        self.file_selection_canvas.itemconfig(bg_id, fill="#add8e6", outline="#4682b4")
+        self.selected_files.append(self.file_selection_canvas.file_icon_ids[file_path])
         self.log_message(f"Selected file: {os.path.basename(file_path)}")
 
+    def toggle_file_selection(self, file_path, row_widget, selection_set, selected_color="#add8e6",
+                              default_color="#ffffff"):
+        """Generic toggler for selecting/deselecting a file row with dynamic border."""
+        if file_path in selection_set:
+            selection_set.remove(file_path)
+            row_widget.config(
+                bg=default_color,
+                highlightthickness=0,
+            )
+            for widget in row_widget.winfo_children():
+                widget.config(bg=default_color)
+        else:
+            selection_set.add(file_path)
+            self.update_save_button_text()
+            row_widget.config(
+                bg=selected_color,
+                highlightbackground="#1E3A8A", 
+                highlightcolor="#1E3A8A",
+                highlightthickness=1
+            )
+            for widget in row_widget.winfo_children():
+                widget.config(bg=selected_color)
+
+        self.update_save_button_text()
+
     def deselect_file(self, file_path, bg_id):
-        self.canvas.itemconfig(bg_id, fill="", outline="")
-        if self.canvas.file_icon_ids[file_path] in self.selected_files:
-            self.selected_files.remove(self.canvas.file_icon_ids[file_path])
+        self.file_selection_canvas.itemconfig(bg_id, fill="", outline="")
+        if self.file_selection_canvas.file_icon_ids[file_path] in self.selected_files:
+            self.selected_files.remove(self.file_selection_canvas.file_icon_ids[file_path])
         self.log_message(f"Deselected file: {os.path.basename(file_path)}")
 
     def deselect_all_files(self):
-        for file_path in self.added_files:
-            if file_path in self.canvas.file_bg_ids:
-                bg_id = self.canvas.file_bg_ids[file_path]
-                self.canvas.itemconfig(bg_id, fill="", outline="")
+        self.deselect_all(
+            self.added_files,
+            self.file_selection_canvas.file_bg_ids,
+            self.selected_files,
+            lambda i: ""  # canvas fills are already alternating by shape
+        )
         self.log_message(f"Deselected {len(self.selected_files)} files")
         self.selected_files = []
         self.update_process_button_text()
+        self.update_save_button_text()
         self.update_remove_button_visibility()
+
+    def clear_result_selections(self):
+        self.deselect_all(
+            self.result_file_widgets,
+            self.selected_save_paths,
+            lambda i: "#ffffff" if i % 2 == 0 else "#f5f5f5"
+        )
+        self.update_save_button_text()
+
+    def deselect_all(self, file_paths, widget_map, selection_set, background_func):
+        for index, file_path in enumerate(file_paths):
+            if file_path not in widget_map:
+                continue
+
+            widget = widget_map[file_path]
+            bg_color = background_func(index)
+
+            # Canvas-based widgets (file selection view)
+            if isinstance(widget, int):
+                self.file_selection_canvas.itemconfig(widget, fill="", outline="")
+                if widget in selection_set:
+                    selection_set.remove(widget)
+
+            # Frame-based widgets (results view)
+            elif isinstance(widget, Frame):
+                widget.config(bg=bg_color, highlightthickness=0)
+                for child in widget.winfo_children():
+                    child.config(bg=bg_color)
+
+                if file_path in selection_set:
+                    selection_set.remove(file_path)
+        self.update_save_button_text()
 
     def get_selected_files(self):
         selected_paths = []
         for icon_id in self.selected_files:
-            if icon_id in self.canvas.filenames:
-                selected_paths.append(self.canvas.filenames[icon_id])
+            if icon_id in self.file_selection_canvas.filenames:
+                selected_paths.append(self.file_selection_canvas.filenames[icon_id])
         return selected_paths
 
     def is_pdf(self, file_path):
@@ -502,9 +835,13 @@ class GUI:
         else:
             self.handle_error("Processing Error", "Parsing failed. No PDF files were selected.")
 
+    def get_selected_result_paths(self):
+        return list(self.selected_save_paths)
+
     def show_info(self, title, message):
         messagebox.showinfo(title, message, parent=self.root)
 
     def handle_results(self):
         # Implementation to handle and display OCR results
+        
         pass
