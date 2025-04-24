@@ -521,9 +521,9 @@ class GUI:
         self.rect_selection_active = False
 
         # Bind events for rectangle selection
-        self.canvas.bind("<ButtonPress-1>", self.on_mouse_down)
-        self.canvas.bind("<B1-Motion>", self.on_mouse_drag)
-        self.canvas.bind("<ButtonRelease-1>", self.on_mouse_up)
+        self.file_selection_canvas.bind("<ButtonPress-1>", self.on_mouse_down)
+        self.file_selection_canvas.bind("<B1-Motion>", self.on_mouse_drag)
+        self.file_selection_canvas.bind("<ButtonRelease-1>", self.on_mouse_up)
 
     def on_mouse_down(self, event):
         """Handle mouse button press event."""
