@@ -29,7 +29,7 @@ class GUI:
         self.selected_files = []
         self.selected_save_paths = set()
         self.result_file_widgets = {}
-        self.last_window_width = self.root.winfo_width()
+        self.last_window_width = None
         self.select_button = None
         self.save_button = None
         self.file_selection_inner_window = None
@@ -384,6 +384,18 @@ class GUI:
         self.arrange_files()
         self.update_file_status(remove=removed_count)
 
+    # def bind_window_resize(self):
+    #     self.root.bind("<Configure>", self.on_window_resize)
+    #     self.last_window_width = self.root.winfo_width()
+    #
+    # def on_window_resize(self, event):
+    #     if event.widget == self.root:
+    #         current_width = self.root.winfo_width()
+    #         if abs(current_width - self.last_window_width) > 10:
+    #             self.last_window_width = current_width
+    #             if current_width > 100:
+    #                 self.arrange_files()
+
     def bind_window_resize(self):
         self.root.bind("<Configure>", self.on_window_resize)
         self.last_window_width = self.root.winfo_width()
@@ -393,8 +405,9 @@ class GUI:
             current_width = self.root.winfo_width()
             if abs(current_width - self.last_window_width) > 10:
                 self.last_window_width = current_width
-                if current_width > 100:
+                if current_width > 100 and hasattr(self, 'file_selection_canvas') and self.file_selection_canvas:
                     self.arrange_files()
+
 
     def bind_mousewheel_to_canvas(self):
         def _on_mousewheel(event):
@@ -408,8 +421,8 @@ class GUI:
         self.file_selection_canvas.bind("<Button-5>", _on_mousewheel)
 
     def calculate_grid_layout(self):
-        if not hasattr(self, 'canvas') or not self.file_selection_canvas.winfo_exists():
-            return 5
+        if not hasattr(self, 'file_selection_canvas') or not self.file_selection_canvas:
+            return 7
 
         canvas_width = self.file_selection_canvas.winfo_width()
         if canvas_width <= 1:
@@ -420,6 +433,9 @@ class GUI:
         return icons_per_row
 
     def arrange_files(self):
+        if not hasattr(self, 'file_selection_canvas') or not self.file_selection_canvas:
+            return
+
         self.file_selection_canvas.delete("all")
         self.file_selection_canvas.filenames = {}
         self.file_selection_canvas.file_icon_ids = {}
@@ -484,6 +500,7 @@ class GUI:
             if col >= icons_per_row:
                 col = 0
                 row += 1
+
 
         total_rows = (len(self.added_files) + icons_per_row - 1) // icons_per_row
         canvas_height = margin_y + (total_rows * icon_height) + margin_y
