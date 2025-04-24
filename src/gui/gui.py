@@ -31,6 +31,7 @@ class GUI:
         self.result_file_widgets = {}
         self.last_window_width = self.root.winfo_width()
         self.select_button = None
+        self.save_button = None
         self.file_selection_inner_window = None
         self.results_canvas_window = None
         self.scrollbar = None
@@ -298,7 +299,7 @@ class GUI:
         status_placeholder = Label(bottom_frame, text="")  # You could repurpose this for summary or status
         status_placeholder.grid(row=0, column=0, padx=10, sticky="w")
 
-        save_button = Button(
+        self.save_button = Button(
             bottom_frame,
             text="Save Parsed Files",
             command=self.master.save_parsed_files,
@@ -308,7 +309,8 @@ class GUI:
             padx=10,
             pady=5
         )
-        save_button.grid(row=0, column=1, padx=10, sticky="e")
+        self.save_button.grid(row=0, column=1, padx=10, sticky="e")
+        self.update_save_button_text()
 
     def create_complete_frame(self):
         # Implementation for complete frame goes here.
@@ -655,6 +657,15 @@ class GUI:
         else:
             self.process_button.config(text="Parse All Files")
 
+    def update_save_button_text(self):
+        if not self.save_button:
+            return
+        count = len(self.selected_save_paths)
+        if count == 0:
+            self.save_button.config(text="Save All Files")
+        else:
+            self.save_button.config(text=f"Save {count} File{'s' if count > 1 else ''}")
+
     def update_remove_button_visibility(self):
         if self.selected_files:
             self.remove_button.pack(side="right", padx=2, pady=2)
@@ -679,6 +690,7 @@ class GUI:
                 widget.config(bg=default_color)
         else:
             selection_set.add(file_path)
+            self.update_save_button_text()
             row_widget.config(
                 bg=selected_color,
                 highlightbackground="#1E3A8A",  # deep blue
@@ -687,6 +699,8 @@ class GUI:
             )
             for widget in row_widget.winfo_children():
                 widget.config(bg=selected_color)
+
+        self.update_save_button_text()
 
     def deselect_file(self, file_path, bg_id):
         self.file_selection_canvas.itemconfig(bg_id, fill="", outline="")
@@ -704,6 +718,7 @@ class GUI:
         self.log_message(f"Deselected {len(self.selected_files)} files")
         self.selected_files = []
         self.update_process_button_text()
+        self.update_save_button_text()
         self.update_remove_button_visibility()
 
     def clear_result_selections(self):
@@ -713,6 +728,7 @@ class GUI:
             self.selected_save_paths,
             lambda i: "#ffffff" if i % 2 == 0 else "#f5f5f5"
         )
+        self.update_save_button_text()
 
     def deselect_all(self, file_paths, widget_map, selection_set, background_func):
         for index, file_path in enumerate(file_paths):
@@ -736,6 +752,7 @@ class GUI:
 
                 if file_path in selection_set:
                     selection_set.remove(file_path)
+        self.update_save_button_text()
 
     def get_selected_files(self):
         selected_paths = []
