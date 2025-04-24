@@ -1,5 +1,6 @@
 # src/gui/app_window.py
 import os
+import textwrap
 from tkinter import filedialog, scrolledtext, messagebox
 
 import PIL
@@ -110,6 +111,8 @@ class GUI:
         )
 
     def create_file_selection_frame(self):
+        self.update_page_title("Select Files to Parse")
+
         content_frame = Frame(self.main_frame)
         content_frame.pack(expand=True, fill="both")
         content_frame.grid_rowconfigure(1, weight=1)
@@ -136,17 +139,19 @@ class GUI:
         self.canvas.file_icon_ids = {}
         self.canvas.file_bg_ids = {}
         self.canvas.nextcoords = [60, 20]
-        # self.canvas.bind("<Button-1>", self.handle_canvas_click)
         self.setup_rectangle_selection()
         self.bind_mousewheel_to_canvas()
 
         if not self.added_files:
-            self.drag_drop_label = Label(self.canvas, text="Drag & Drop PDF Files Here",
-                                         font=("Arial", 10), fg="#555555", bg=canvas_bg)
+            self.drag_drop_label = Label(self.canvas,
+                                         text="Drag & Drop PDF Files Here",
+                                         font=("Arial", 10),
+                                         fg="#555555",
+                                         bg=canvas_bg)
             self.drag_drop_label.pack(expand=True, fill="both")
 
-        bottom_frame = Frame(content_frame, height=40)
-        bottom_frame.grid(row=2, column=0, padx=5, pady=10, sticky="ew")
+        bottom_frame = Frame(content_frame, height=50)
+        bottom_frame.grid(row=2, column=0, padx=(0, 10), pady=10, sticky="ew")
         bottom_frame.grid_columnconfigure(0, weight=1)
         bottom_frame.grid_propagate(False)
 
@@ -154,60 +159,156 @@ class GUI:
         self.status_label.grid(row=0, column=0, padx=10, pady=5, sticky="w")
 
         button_frame = Frame(bottom_frame)
-        button_frame.grid(row=0, column=1, padx=10, pady=5, sticky="e")
+        # button_frame.grid(row=0, column=1, padx=10, pady=5, sticky="e")
+        button_frame.grid(row=0, column=1, padx=10, sticky="e")
+
+        # self.process_button = Button(
+        #     button_frame,
+        #     text="Parse All Files",
+        #     command=self.process_files
+        # )
 
         self.process_button = Button(
             button_frame,
             text="Parse All Files",
-            command=self.process_files
+            command=self.process_files,
+            font=("Arial", 10, "bold"),
+            bg="#3a4cde",
+            fg="white",
+            padx=10,
+            pady=5
         )
         self.process_button.pack(side="right", padx=10)
         self.update_process_button_text()
 
         self.select_button = Button(button_frame, text="Select Files", command=self.add_files)
+        self.select_button = Button(
+            button_frame,
+            text="Select Files",
+            command=self.add_files,
+            font=("Arial", 10, "bold"),
+            bg="#c3c3c7",
+            padx=10,
+            pady=5
+        )
         self.select_button.pack(side="right", padx=10)
 
-        self.update_page_title("Select Files to Parse")
+        # ----- Save Button -----
+
+        #
+        # self.process_button = Button(
+        #     button_frame,
+        #     text="Parse All Files",
+        #     command=self.process_files,
+        #     font=("Arial", 10, "bold"),
+        #     bg="#3a4cde",
+        #     fg="white",
+        #     padx=10,
+        #     pady=5
+        # )
+        # self.process_button.grid(row=0, column=1, padx=10, sticky="e")
 
     def create_processing_frame(self):
         # Implementation for processing frame goes here.
 
-        self.update_page_title("Processing")
+        self.update_page_title("Processing...")
 
         pass
 
     def create_results_frame(self):
-        content_frame = Frame(self.main_frame)
-        content_frame.pack(expand=True, fill="both")
-
-        main_frame = Frame(content_frame)
-        main_frame.grid(row=1, column=0, padx=5, pady=5, sticky="news")
-        main_frame.grid_rowconfigure(0, weight=1)
-        main_frame.grid_columnconfigure(0, weight=1)
-
-        content_frame.grid_columnconfigure(0, weight=1)
-        content_frame.grid_rowconfigure(0, weight=1)
-
-        self.inner_frame = Frame(content_frame)
-        self.inner_frame.grid(row=0, column=0, padx=10, pady=10, sticky="news")
-
-        text_area = scrolledtext.ScrolledText(self.inner_frame, wrap=WORD, height=15)
-        text_area.pack(expand=True, fill="both", padx=10, pady=5)
-
-        # REPLACE WITH ACTUAL RESULTS DISPLAY AND HANDLING
-        if self.master.parsed_files:
-            # Display the extracted text from the first parsed file
-            text_area.insert(END, self.master.parsed_files[0][1])
-        text_area.config(state="disabled")
-
-        download_button = Button(
-            self.inner_frame,
-            text="Save Parsed Files",
-            command=self.master.save_parsed_files
-        )
-        download_button.pack(pady=10)
-
         self.update_page_title("OCR Results")
+
+        content_frame = Frame(self.main_frame)
+        content_frame.pack(expand=True, fill="both", padx=10, pady=10)
+
+        # ----- Summary Header -----
+        summary_frame = Frame(content_frame)
+        summary_frame.pack(fill="x", pady=(0, 10))
+
+        num_files = len(self.master.parsed_files)
+        summary_label = Label(
+            summary_frame,
+            text=f"Successfully parsed {num_files} file{'s' if num_files != 1 else ''}.",
+            font=("Arial", 12, "bold"),
+            anchor="w"
+        )
+        summary_label.pack(side="left")
+
+        # ----- Results Viewer -----
+        results_container = Frame(content_frame, relief="sunken", borderwidth=1)
+        results_container.pack(fill="both", expand=True)
+
+        results_canvas = Canvas(results_container, bg="white", highlightthickness=0)
+        scrollbar = Scrollbar(results_container, orient="vertical", command=results_canvas.yview)
+        results_canvas.configure(yscrollcommand=scrollbar.set)
+
+        scrollable_frame = Frame(results_canvas, bg="white")
+        results_canvas_window = results_canvas.create_window((0, 0), window=scrollable_frame, anchor="nw")
+
+        def on_configure(event):
+            results_canvas.configure(scrollregion=results_canvas.bbox("all"))
+
+        def on_canvas_resize(event):
+            results_canvas.itemconfig(results_canvas_window, width=event.width)
+
+        scrollable_frame.bind("<Configure>", on_configure)
+        results_canvas.bind("<Configure>", on_canvas_resize)
+
+        results_canvas.pack(side="left", fill="both", expand=True)
+        scrollbar.pack(side="right", fill="y")
+
+        # ----- Header Row -----
+        header = Frame(scrollable_frame, bg="#e0e0e0", pady=4)
+        header.pack(fill="x")
+
+        Label(header, text="Name", width=25, anchor="w", font=("Arial", 10, "bold"), bg="#e0e0e0").pack(side="left")
+        Label(header, text="Type", width=8, anchor="w", font=("Arial", 10, "bold"), bg="#e0e0e0").pack(side="left")
+        Label(header, text="Size", width=10, anchor="w", font=("Arial", 10, "bold"), bg="#e0e0e0").pack(side="left")
+        Label(header, text="Path", anchor="w", font=("Arial", 10, "bold"), bg="#e0e0e0").pack(side="left", fill="x",
+                                                                                              expand=True)
+
+        # ----- File Rows -----
+        for file_path, _ in self.master.parsed_files:
+            base_name = os.path.basename(file_path)
+            name, ext = os.path.splitext(base_name)
+            file_ext = ext[1:].upper() or "N/A"
+            try:
+                size_bytes = os.path.getsize(file_path)
+                size_str = f"{size_bytes / 1024:.1f} KB" if size_bytes < 1_000_000 else f"{size_bytes / 1_048_576:.2f} MB"
+            except FileNotFoundError:
+                size_str = "N/A"
+
+            truncated_path = textwrap.shorten(file_path, width=80, placeholder="...")
+
+            row = Frame(scrollable_frame, bg="white", pady=2)
+            row.pack(fill="x")
+
+            Label(row, text=name, width=25, anchor="w", bg="white", font=("Arial", 10)).pack(side="left")
+            Label(row, text=file_ext, width=8, anchor="w", bg="white", font=("Arial", 10)).pack(side="left")
+            Label(row, text=size_str, width=10, anchor="w", bg="white", font=("Arial", 10)).pack(side="left")
+            Label(row, text=truncated_path, anchor="w", bg="white", font=("Arial", 10)).pack(side="left", fill="x",
+                                                                                             expand=True)
+
+        # ----- Save Button -----
+        bottom_frame = Frame(content_frame, height=40)
+        bottom_frame.pack(fill="x", pady=(10, 0))
+        bottom_frame.grid_columnconfigure(0, weight=1)
+        bottom_frame.grid_propagate(False)
+
+        status_placeholder = Label(bottom_frame, text="")  # You could repurpose this for summary or status
+        status_placeholder.grid(row=0, column=0, padx=10, sticky="w")
+
+        save_button = Button(
+            bottom_frame,
+            text="Save Parsed Files",
+            command=self.master.save_parsed_files,
+            font=("Arial", 10, "bold"),
+            bg="#4CAF50",
+            fg="white",
+            padx=10,
+            pady=5
+        )
+        save_button.grid(row=0, column=1, padx=10, sticky="e")
 
     def create_complete_frame(self):
         # Implementation for complete frame goes here.
