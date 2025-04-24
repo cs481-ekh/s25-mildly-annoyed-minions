@@ -314,10 +314,12 @@ class GUI:
 
     def create_complete_frame(self):
         # Implementation for complete frame goes here.
+
         pass
 
     def create_error_frame(self):
         # Implementation for error frame goes here.
+
         pass
 
     def update_page_title(self, new_title):
@@ -383,18 +385,6 @@ class GUI:
         self.update_remove_button_visibility()
         self.arrange_files()
         self.update_file_status(remove=removed_count)
-
-    # def bind_window_resize(self):
-    #     self.root.bind("<Configure>", self.on_window_resize)
-    #     self.last_window_width = self.root.winfo_width()
-    #
-    # def on_window_resize(self, event):
-    #     if event.widget == self.root:
-    #         current_width = self.root.winfo_width()
-    #         if abs(current_width - self.last_window_width) > 10:
-    #             self.last_window_width = current_width
-    #             if current_width > 100:
-    #                 self.arrange_files()
 
     def bind_window_resize(self):
         self.root.bind("<Configure>", self.on_window_resize)
@@ -838,4 +828,5 @@ class GUI:
 
     def handle_results(self):
         # Implementation to handle and display OCR results
+
         pass
