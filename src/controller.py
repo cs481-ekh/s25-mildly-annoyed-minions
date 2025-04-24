@@ -11,6 +11,7 @@ class AppController:
 
     def __init__(self):
         self.gui = GUI(self)
+        self.ocr_processor = OCRProcessor(self)
         self.current_state = None
         self.parsed_files = []
         self.current_file = None  # Track the current file being processed
@@ -72,11 +73,15 @@ class AppController:
             self.gui.handle_error("Save Error", "No successfully parsed files to save.")
             return
 
-        ocr_processor = OCRProcessor(master=self)
+        selected_paths = self.gui.get_selected_result_paths()
+        files_to_save = [f for f in self.parsed_files if
+                         f[0] in selected_paths] if selected_paths else self.parsed_files
 
-        for csv_path, extracted_text in self.parsed_files:
+        # ocr_processor = OCRProcessor(master=self)
+
+        for csv_path, extracted_text in files_to_save:
             if csv_path and extracted_text:
-                saved_path = ocr_processor.save_csv(csv_path, extracted_text)
+                saved_path = self.ocr_processor.save_csv(csv_path, extracted_text)
                 if not saved_path:
                     self.gui.handle_error("Save Error", f"Failed to save: {csv_path}")
 
